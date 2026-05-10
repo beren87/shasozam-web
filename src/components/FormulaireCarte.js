@@ -42,12 +42,14 @@ export default function FormulaireCarte({
               value={form.type}
               onChange={gererChangement}
               className='w-full bg-black border border-neutral-700 p-3 rounded-xl outline-none'>
-              <option>Serviteur</option>
-              <option>Tentateur</option>
-              <option>Aberration</option>
-              <option>Gardien</option>
-              <option>Invocateur</option>
-              <option>Démon</option>
+              <option value='Serviteur'>Serviteur</option>
+              <option value='Tentateur'>Tentateur</option>
+              <option value='Tentatrice'>Tentatrice</option>
+              <option value='Aberration'>Aberration</option>
+              <option value='Gardien'>Gardien</option>
+              <option value='Invocateur'>Invocateur</option>
+              <option value='Invocatrice'>Invocatrice</option>
+              <option value='Démon'>Démon</option>
             </select>
           </div>
         </div>
