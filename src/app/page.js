@@ -1,65 +1,143 @@
-import Image from "next/image";
+'use client';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { auth, googleProvider } from '../firebase';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  onAuthStateChanged,
+} from 'firebase/auth';
 
-export default function Home() {
+// NOUVEAU : On importe notre brique pour les champs de saisie
+import InputAuth from '../components/InputAuth';
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [modeInscription, setModeInscription] = useState(false);
+  const [erreur, setErreur] = useState('');
+  const [voirMdp, setVoirMdp] = useState(false);
+  const [chargement, setChargement] = useState(true);
+
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // SI CONNECTÉ : On envoie directement sur la page Home !
+        router.push('/home');
+      } else {
+        setChargement(false);
+      }
+    });
+  }, [router]);
+
+  const gererLogin = async (e) => {
+    e.preventDefault();
+    setErreur('');
+    try {
+      if (modeInscription) {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+    } catch (error) {
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          setErreur('Ce parchemin est déjà lié à un autre Souverain.');
+          break;
+        case 'auth/invalid-credential':
+          setErreur('Les sceaux ne correspondent pas.');
+          break;
+        case 'auth/weak-password':
+          setErreur(
+            'Votre mot de passe est trop faible. (6 caractères minimum)'
+          );
+          break;
+        case 'auth/invalid-email':
+          setErreur("Cette adresse n'existe dans aucun registre.");
+          break;
+        default:
+          setErreur('Une force obscure a bloqué la connexion. Réessayez.');
+      }
+    }
+  };
+
+  const gererGoogle = async () => {
+    setErreur('');
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+      if (error.code !== 'auth/popup-closed-by-user') {
+        setErreur('La connexion avec Google a échoué.');
+      }
+    }
+  };
+
+  if (chargement)
+    return (
+      <div className='min-h-screen bg-black flex items-center justify-center text-red-600 font-bold'>
+        Vérification des sceaux...
+      </div>
+    );
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main className='min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-4'>
+      <h1 className='text-6xl font-black text-red-600 mb-12 tracking-tighter italic uppercase'>
+        Shasozam
+      </h1>
+
+      <form
+        onSubmit={gererLogin}
+        className='bg-neutral-900 p-8 rounded-3xl border border-neutral-800 shadow-2xl w-full max-w-md flex flex-col gap-4'>
+        {erreur && (
+          <div className='bg-red-950/50 border border-red-500 text-red-200 p-3 rounded-lg text-sm text-center font-medium'>
+            {erreur}
+          </div>
+        )}
+
+        {/* Brique Input pour l'Email */}
+        <InputAuth
+          type='email'
+          placeholder='Email'
+          valeur={email}
+          onChange={(e) => setEmail(e.target.value)}
+          boutonAction={email.length > 0 ? () => setEmail('') : null}
+          iconeBouton='✖️'
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.js file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+        {/* Brique Input pour le Mot de passe */}
+        <InputAuth
+          type={voirMdp ? 'text' : 'password'}
+          placeholder='Mot de passe'
+          valeur={password}
+          onChange={(e) => setPassword(e.target.value)}
+          boutonAction={() => setVoirMdp(!voirMdp)}
+          iconeBouton={voirMdp ? '🙈' : '👁️'}
+        />
+
+        <button className='bg-red-600 py-4 rounded-xl font-bold uppercase tracking-widest mt-2 hover:bg-red-500 transition-colors cursor-pointer'>
+          {modeInscription ? 'Créer son alliance' : "Entrer dans l'enfer"}
+        </button>
+
+        <button
+          type='button'
+          onClick={() => {
+            setModeInscription(!modeInscription);
+            setErreur('');
+          }}
+          className='text-xs text-gray-500 underline uppercase hover:text-white transition-colors cursor-pointer'>
+          {modeInscription
+            ? 'Déjà un compte ? Se connecter'
+            : 'Nouveau ? Créer un compte'}
+        </button>
+      </form>
+
+      <button
+        onClick={gererGoogle}
+        className='mt-8 text-sm text-gray-400 hover:text-white transition-colors cursor-pointer'>
+        Continuer avec Google
+      </button>
+    </main>
   );
 }
