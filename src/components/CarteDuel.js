@@ -183,12 +183,14 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
       }`}>
       {isZoomed && (
         <>
+          {/* 1. LE BOUTON "i" (Attaché au coin en haut à droite de la carte) */}
           <div
             onClick={(e) => {
               e.stopPropagation();
               setShowInfos(!showInfos);
             }}
-            className='fixed top-8 right-8 w-10 h-10 rounded-full border-[3px] border-white/50 bg-black/80 text-white flex justify-center items-center font-serif text-xl italic cursor-pointer hover:bg-white/20 hover:border-white transition-all z-[9999] group'>
+            // 👇 Le secret est ici : on passe de "fixed" à "absolute -top-5 -right-5" 👇
+            className='absolute -top-5 -right-5 w-10 h-10 rounded-full border-[3px] border-white/50 bg-black/80 text-white flex justify-center items-center font-serif text-xl italic cursor-pointer hover:bg-white/20 hover:border-white transition-all z-[9999] group shadow-[0_0_10px_rgba(0,0,0,0.5)]'>
             i
             <span className='absolute -bottom-8 right-0 w-max bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity font-sans not-italic'>
               {showInfos
