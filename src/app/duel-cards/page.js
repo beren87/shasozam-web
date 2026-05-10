@@ -143,9 +143,6 @@ export default function DuelCardsPage() {
               className='relative z-[205] my-auto'>
               {/* ON UTILISE NOTRE BRIQUE EN MODE ZOOM */}
               <CarteDuel carte={carteZoom} isZoomed={true} onZoom={() => {}} />
-              <p className='text-center text-gray-400 mt-8 text-xs uppercase tracking-[0.2em] animate-pulse'>
-                Survolez les éléments pour plus d&apos;informations
-              </p>
             </div>
           </motion.div>
         )}
