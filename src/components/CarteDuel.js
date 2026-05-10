@@ -211,7 +211,19 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
               <InfoBubble
                 side='left'
                 top='top-[85%]'
-                text='Effet de victoire déclenché au succès du duel.'
+                text={
+                  <span className='flex flex-col gap-1'>
+                    <span>
+                      Effet de victoire immédiat ou persistant* lorsqu’un duel
+                      est remporté, déclenché uniquement au moment de la
+                      victoire.
+                    </span>
+                    <span className='text-[8px] italic font-normal text-slate-500 leading-tight'>
+                      *Sont considérés comme effets démoniaques bruts
+                      persistants : Fatigue, Charmer et Corruption.
+                    </span>
+                  </span>
+                }
               />
               <InfoBubble
                 side='right'
