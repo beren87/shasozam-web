@@ -432,3 +432,4 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
     </motion.div>
   );
 }
+// KAN-1 : Test de synchronisation Jira réussi !
