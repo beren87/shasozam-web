@@ -235,11 +235,19 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
                 top='top-[3%]'
                 text='Âme : Puissance de la carte.'
               />
-              <InfoBubble
-                side='right'
-                top='top-[16%]'
-                text='Coût en jeton d’Âme et/ou Sceau.'
-              />
+
+              {/* 👇 KAN-8 : On vérifie le type de la carte avant d'afficher la bulle des coûts 👇 */}
+              {carte.type &&
+                !carte.type.toLowerCase().includes('serviteur') &&
+                !carte.type.toLowerCase().includes('tentat') &&
+                !carte.type.toLowerCase().includes('aberration') && (
+                  <InfoBubble
+                    side='right'
+                    top='top-[16%]'
+                    text='Coût en jeton d’Âme et/ou Sceau.'
+                  />
+                )}
+
               <InfoBubble
                 side='right'
                 top='top-[55%]'
