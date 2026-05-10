@@ -140,7 +140,8 @@ export default function DuelCardsPage() {
             </button>
             <div
               onClick={(e) => e.stopPropagation()}
-              className='relative z-[205] my-auto'>
+              // 👇 Le fix est ici : on force la boîte à prendre la largeur (w-full) et à centrer la carte 👇
+              className='relative z-[205] my-auto w-full flex justify-center'>
               {/* ON UTILISE NOTRE BRIQUE EN MODE ZOOM */}
               <CarteDuel carte={carteZoom} isZoomed={true} onZoom={() => {}} />
             </div>
