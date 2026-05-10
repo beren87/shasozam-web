@@ -206,7 +206,7 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
               <InfoBubble
                 side='left'
                 top='top-[70%]'
-                text='Effet démoniaque brut appliqué à la cible.'
+                text='Effet démoniaque brut, indiquant l’effet appliqué à la carte ciblée + effet supplémentaire.'
               />
               <InfoBubble
                 side='left'
@@ -228,7 +228,7 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
               <InfoBubble
                 side='right'
                 top='top-[3%]'
-                text='Puissance d’âme de la carte.'
+                text='Âme : Puissance de la carte.'
               />
               <InfoBubble
                 side='right'
