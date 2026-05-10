@@ -183,14 +183,14 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
       }`}>
       {isZoomed && (
         <>
-          {/* 1. LE BOUTON "i" (Attaché au coin en haut à droite de la carte) */}
+          {/* 1. LE BOUTON "i" (Masqué sur mobile, affiché sur iPad/Desktop) */}
           <div
             onClick={(e) => {
               e.stopPropagation();
               setShowInfos(!showInfos);
             }}
-            // 👇 Le secret est ici : on passe de "fixed" à "absolute -top-5 -right-5" 👇
-            className='absolute -top-5 -right-5 w-10 h-10 rounded-full border-[3px] border-white/50 bg-black/80 text-white flex justify-center items-center font-serif text-xl italic cursor-pointer hover:bg-white/20 hover:border-white transition-all z-[9999] group shadow-[0_0_10px_rgba(0,0,0,0.5)]'>
+            // 👇 On a remplacé le premier "flex" par "hidden md:flex" 👇
+            className='hidden md:flex absolute -top-5 -right-5 w-10 h-10 rounded-full border-[3px] border-white/50 bg-black/80 text-white justify-center items-center font-serif text-xl italic cursor-pointer hover:bg-white/20 hover:border-white transition-all z-[9999] group shadow-[0_0_10px_rgba(0,0,0,0.5)]'>
             i
             <span className='absolute -bottom-8 right-0 w-max bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity font-sans not-italic'>
               {showInfos
@@ -199,8 +199,11 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
             </span>
           </div>
 
+          {/* 2. LES BULLES D'INFO (Masquées sur mobile également) */}
           {showInfos && (
-            <div className='absolute inset-0 z-[500]'>
+            // 👇 On a ajouté "hidden md:block" ici pour cacher les bulles sur petit écran 👇
+            <div className='hidden md:block absolute inset-0 z-[500]'>
+              {/* Côté Gauche */}
               <InfoBubble side='left' top='top-[1%]' text='Nom de la carte.' />
               <InfoBubble side='left' top='top-[9%]' text='Type de la carte.' />
               <InfoBubble
@@ -225,6 +228,8 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
                   </span>
                 }
               />
+
+              {/* Côté Droit */}
               <InfoBubble
                 side='right'
                 top='top-[3%]'
