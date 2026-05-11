@@ -212,8 +212,7 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
                   <span className='flex flex-col gap-1'>
                     <span>
                       Effet de victoire immédiat ou persistant* lorsqu’un duel
-                      est remporté, déclenché uniquement au moment de la
-                      victoire.
+                      est remporté.
                     </span>
                     <span className='text-[8px] italic font-normal text-slate-500 leading-tight'>
                       *Sont considérés comme effets démoniaques bruts
@@ -298,8 +297,9 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
             </span>
           </div>
 
+          {/* 👇 KAN-27 : CORRECTION DES CYCLES (Tailles, débordements, texte Ange/Démon) 👇 */}
           <div
-            className={`absolute top-[58%] left-[25%] w-[50%] h-[8%] flex justify-center items-center z-30`}>
+            className={`absolute top-[58%] left-[8%] w-[84%] h-[8%] flex justify-center items-center z-30`}>
             {[1, 2, 3, 4, 5].map((cycle, index) => {
               const isStandard = carte.cycles?.includes(cycle);
               const isAnge = carte.cyclesAnge?.includes(cycle);
@@ -325,29 +325,31 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
                 !isNextDemon &&
                 !carte.cyclesDemon?.includes(cycle - 1);
 
-              let wrapperClasses = 'p-[2px] rounded-full transition-all ';
+              let wrapperClasses =
+                'rounded-full transition-all flex items-center justify-center ';
               let shadowClasses = '';
               if (isAnge && isDemon) {
                 wrapperClasses +=
-                  'bg-gradient-to-r from-[#92FFFF] to-[#CF81FF]';
+                  'bg-gradient-to-r from-[#92FFFF] to-[#CF81FF] p-[2px]';
                 shadowClasses =
-                  'shadow-[-6px_0_12px_rgba(146,255,255,0.7),6px_0_12px_rgba(207,129,255,0.7)]';
+                  'shadow-[-4px_0_10px_rgba(146,255,255,0.7),4px_0_10px_rgba(207,129,255,0.7)]';
               } else if (isAnge) {
-                wrapperClasses += 'bg-[#92FFFF]';
-                shadowClasses = 'shadow-[0_0_12px_rgba(146,255,255,0.7)]';
+                wrapperClasses += 'bg-[#92FFFF] p-[2px]';
+                shadowClasses = 'shadow-[0_0_10px_rgba(146,255,255,0.7)]';
               } else if (isDemon) {
-                wrapperClasses += 'bg-[#CF81FF]';
-                shadowClasses = 'shadow-[0_0_12px_rgba(207,129,255,0.7)]';
+                wrapperClasses += 'bg-[#CF81FF] p-[2px]';
+                shadowClasses = 'shadow-[0_0_10px_rgba(207,129,255,0.7)]';
               } else if (isActif) {
-                wrapperClasses += 'bg-red-500';
-                shadowClasses = 'shadow-[0_0_12px_rgba(220,38,38,0.7)]';
+                wrapperClasses += 'bg-red-500 p-[2px]';
+                shadowClasses = 'shadow-[0_0_10px_rgba(220,38,38,0.7)]';
               } else {
                 wrapperClasses +=
                   'bg-neutral-800 border border-neutral-700/50 p-0';
               }
 
+              // On raccourcit la ligne (w-4 unzoomed, w-6 zoomed) pour ne pas déborder
               let lineClasses = `h-1.5 transition-all ${
-                isZoomed ? 'w-9' : 'w-7'
+                isZoomed ? 'w-6' : 'w-4'
               } relative `;
               if (isLineAnge && isLineDemon) {
                 lineClasses +=
@@ -368,10 +370,13 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
               return (
                 <div key={cycle} className='flex items-center'>
                   <div className='relative flex items-center justify-center'>
+                    {/* Le texte remonte (top devient plus négatif, bottom devient plus négatif) */}
                     {isStandaloneAnge && (
                       <span
                         className={`absolute ${
-                          isZoomed ? '-top-6 text-[10px]' : '-top-4 text-[7px]'
+                          isZoomed
+                            ? '-top-[24px] text-[10px]'
+                            : '-top-[20px] text-[7px]'
                         } text-[#92FFFF] font-black uppercase tracking-wider drop-shadow-[0_0_5px_rgba(146,255,255,0.8)] texte-contour-fin z-40`}>
                         Ange
                       </span>
@@ -380,8 +385,8 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
                       <span
                         className={`absolute ${
                           isZoomed
-                            ? '-bottom-6 text-[10px]'
-                            : '-bottom-4 text-[7px]'
+                            ? '-bottom-[24px] text-[10px]'
+                            : '-bottom-[20px] text-[7px]'
                         } text-[#CF81FF] font-black uppercase tracking-wider drop-shadow-[0_0_5px_rgba(207,129,255,0.8)] texte-contour-fin z-40`}>
                         Démon
                       </span>
@@ -389,10 +394,15 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
 
                     <div className={`${wrapperClasses} ${shadowClasses}`}>
                       <div
+                        // Les inactifs (w-[18px]) sont maintenant plus petits que les actifs (w-[22px])
                         className={`shrink-0 ${
                           isZoomed
-                            ? 'w-10 h-10 text-base'
-                            : 'w-6 h-6 text-[9px]'
+                            ? isActif
+                              ? 'w-[32px] h-[32px] text-base'
+                              : 'w-[26px] h-[26px] text-sm'
+                            : isActif
+                            ? 'w-[22px] h-[22px] text-[9px]'
+                            : 'w-[18px] h-[18px] text-[8px]'
                         } rounded-full flex items-center justify-center font-bold font-sans ${
                           isActif
                             ? 'bg-[#A80000] text-white border border-black/50'
@@ -417,8 +427,8 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
                         <span
                           className={`absolute ${
                             isZoomed
-                              ? '-top-5 text-[10px]'
-                              : '-top-4 text-[7px]'
+                              ? '-top-[24px] text-[10px]'
+                              : '-top-[20px] text-[7px]'
                           } left-1/2 -translate-x-1/2 text-[#92FFFF] font-black uppercase tracking-wider drop-shadow-[0_0_5px_rgba(146,255,255,0.8)] texte-contour-fin z-40`}>
                           Ange
                         </span>
@@ -428,11 +438,11 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
                           className={`absolute ${
                             isZoomed
                               ? isLineAnge
-                                ? '-bottom-5'
-                                : '-top-5'
+                                ? '-bottom-[24px]'
+                                : '-top-[24px]'
                               : isLineAnge
-                              ? '-bottom-4'
-                              : '-top-4'
+                              ? '-bottom-[20px]'
+                              : '-top-[20px]'
                           } ${
                             isZoomed ? 'text-[10px]' : 'text-[7px]'
                           } left-1/2 -translate-x-1/2 text-[#CF81FF] font-black uppercase tracking-wider drop-shadow-[0_0_5px_rgba(207,129,255,0.8)] texte-contour-fin z-40`}>

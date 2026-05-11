@@ -73,7 +73,7 @@ export default function DuelCardsPage() {
     );
 
   return (
-    <main className='min-h-screen bg-neutral-950 text-gray-100 flex flex-col relative pb-32'>
+    <main className='min-h-screen bg-neutral-800 text-gray-100 flex flex-col relative pb-32'>
       {/* BARRE DE NAVIGATION FLOTTANTE */}
       <div className='fixed top-4 left-0 right-0 z-[150] flex justify-center px-4 pointer-events-none'>
         <div className='w-full max-w-6xl flex justify-between items-center bg-neutral-800/90 backdrop-blur-md p-4 rounded-2xl border border-neutral-600 shadow-2xl pointer-events-auto'>
