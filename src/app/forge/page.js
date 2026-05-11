@@ -133,16 +133,29 @@ export default function AdminPage() {
         dataASauvegarder.imageUrl = urlImage;
       }
 
+      // 👇 KAN-18 : LE TAMPON DES MÉTADONNÉES 👇
+      const maintenant = new Date().toISOString(); // L'heure exacte actuelle
+      // On récupère le pseudo de l'admin (ou son email s'il n'a pas de pseudo)
+      const auteurActuel =
+        auth.currentUser?.displayName || auth.currentUser?.email || 'Admin';
+
+      // On met à jour la date de modification à chaque fois
+      dataASauvegarder.dateModification = maintenant;
+      dataASauvegarder.auteur = auteurActuel;
+
       if (idEdition) {
         await updateDoc(doc(db, 'cartes', idEdition), dataASauvegarder);
         alert('Carte mise à jour !');
       } else {
+        // Si c'est une toute nouvelle carte, on grave la date de création !
+        dataASauvegarder.dateCreation = maintenant;
         await addDoc(collection(db, 'cartes'), dataASauvegarder);
         alert('Nouvelle carte forgée !');
       }
+      // 👆 FIN KAN-18 👆
 
       resetForm();
-      setIsDirty(false); // KAN-19 : On remet l'alarme à zéro car c'est sauvegardé !
+      setIsDirty(false);
       await chargerCartes();
     } catch (error) {
       console.error('Erreur:', error);
