@@ -56,7 +56,6 @@ const ParsedText = ({ text, isZoomed, setHoveredKeyword, isBrut = false }) => {
     'bloqué',
     'mélange',
     'Défaussez',
-    'révèle',
     'vole',
     'Gagnez',
     'pioche',
@@ -183,13 +182,11 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
       }`}>
       {isZoomed && (
         <>
-          {/* 1. LE BOUTON "i" (Masqué sur mobile, affiché sur iPad/Desktop) */}
           <div
             onClick={(e) => {
               e.stopPropagation();
               setShowInfos(!showInfos);
             }}
-            // 👇 On a remplacé le premier "flex" par "hidden md:flex" 👇
             className='hidden md:flex absolute -top-5 -right-5 w-10 h-10 rounded-full border-[3px] border-white/50 bg-black/80 text-white justify-center items-center font-serif text-xl italic cursor-pointer hover:bg-white/20 hover:border-white transition-all z-[9999] group shadow-[0_0_10px_rgba(0,0,0,0.5)]'>
             i
             <span className='absolute -bottom-8 right-0 w-max bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity font-sans not-italic'>
@@ -199,11 +196,8 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
             </span>
           </div>
 
-          {/* 2. LES BULLES D'INFO (Masquées sur mobile également) */}
           {showInfos && (
-            // 👇 On a ajouté "hidden md:block" ici pour cacher les bulles sur petit écran 👇
             <div className='hidden md:block absolute inset-0 z-[500]'>
-              {/* Côté Gauche */}
               <InfoBubble side='left' top='top-[1%]' text='Nom de la carte.' />
               <InfoBubble side='left' top='top-[9%]' text='Type de la carte.' />
               <InfoBubble
@@ -228,15 +222,11 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
                   </span>
                 }
               />
-
-              {/* Côté Droit */}
               <InfoBubble
                 side='right'
                 top='top-[3%]'
                 text='Âme : Puissance de la carte.'
               />
-
-              {/* 👇 KAN-8 : On vérifie le type de la carte avant d'afficher la bulle des coûts 👇 */}
               {carte.type &&
                 !carte.type.toLowerCase().includes('serviteur') &&
                 !carte.type.toLowerCase().includes('tentat') &&
@@ -247,7 +237,6 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
                     text='Coût en jeton d’Âme et/ou Sceau.'
                   />
                 )}
-
               <InfoBubble
                 side='right'
                 top='top-[55%]'
@@ -258,9 +247,7 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
         </>
       )}
 
-      {/* LA CARTE EN ELLE-MÊME (On met tout dedans !) */}
       <div className='absolute inset-0 rounded-3xl overflow-hidden pointer-events-auto'>
-        {/* COUCHE 1 : LE MONSTRE */}
         {carte.imageUrl ? (
           <img
             src={carte.imageUrl}
@@ -273,14 +260,12 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
           </div>
         )}
 
-        {/* COUCHE 2 : LE CADRE */}
         <img
           src='/cadre-carte.png'
           alt='Cadre de carte'
           className='absolute inset-0 w-full h-full object-fill z-10 pointer-events-none'
         />
 
-        {/* COUCHE 3 : LES DONNÉES */}
         <div className='absolute inset-0 z-20 pointer-events-auto'>
           <div className='absolute top-[1%] left-[4%] w-[70%] h-[8%] flex items-center'>
             <h3
@@ -316,38 +301,145 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
           <div
             className={`absolute top-[58%] left-[25%] w-[50%] h-[8%] flex justify-center items-center z-30`}>
             {[1, 2, 3, 4, 5].map((cycle, index) => {
-              const isActif = carte.cycles?.includes(cycle);
-              const isNextActif = carte.cycles?.includes(cycle + 1);
+              const isStandard = carte.cycles?.includes(cycle);
+              const isAnge = carte.cyclesAnge?.includes(cycle);
+              const isDemon = carte.cyclesDemon?.includes(cycle);
+              const isActif = isStandard || isAnge || isDemon;
+
+              const isNextStandard = carte.cycles?.includes(cycle + 1);
+              const isNextAnge = carte.cyclesAnge?.includes(cycle + 1);
+              const isNextDemon = carte.cyclesDemon?.includes(cycle + 1);
+              const isNextActif = isNextStandard || isNextAnge || isNextDemon;
+
+              const isLineAnge = isAnge && isNextAnge;
+              const isLineDemon = isDemon && isNextDemon;
+
+              const isFirstLineAnge =
+                isLineAnge && !carte.cyclesAnge?.includes(cycle - 1);
+              const isFirstLineDemon =
+                isLineDemon && !carte.cyclesDemon?.includes(cycle - 1);
+              const isStandaloneAnge =
+                isAnge && !isNextAnge && !carte.cyclesAnge?.includes(cycle - 1);
+              const isStandaloneDemon =
+                isDemon &&
+                !isNextDemon &&
+                !carte.cyclesDemon?.includes(cycle - 1);
+
+              let wrapperClasses = 'p-[2px] rounded-full transition-all ';
+              let shadowClasses = '';
+              if (isAnge && isDemon) {
+                wrapperClasses +=
+                  'bg-gradient-to-r from-[#92FFFF] to-[#CF81FF]';
+                shadowClasses =
+                  'shadow-[-6px_0_12px_rgba(146,255,255,0.7),6px_0_12px_rgba(207,129,255,0.7)]';
+              } else if (isAnge) {
+                wrapperClasses += 'bg-[#92FFFF]';
+                shadowClasses = 'shadow-[0_0_12px_rgba(146,255,255,0.7)]';
+              } else if (isDemon) {
+                wrapperClasses += 'bg-[#CF81FF]';
+                shadowClasses = 'shadow-[0_0_12px_rgba(207,129,255,0.7)]';
+              } else if (isActif) {
+                wrapperClasses += 'bg-red-500';
+                shadowClasses = 'shadow-[0_0_12px_rgba(220,38,38,0.7)]';
+              } else {
+                wrapperClasses +=
+                  'bg-neutral-800 border border-neutral-700/50 p-0';
+              }
+
+              let lineClasses = `h-1.5 transition-all ${
+                isZoomed ? 'w-9' : 'w-7'
+              } relative `;
+              if (isLineAnge && isLineDemon) {
+                lineClasses +=
+                  'bg-gradient-to-r from-[#92FFFF] to-[#CF81FF] shadow-[0_0_8px_rgba(207,129,255,0.7)]';
+              } else if (isLineAnge) {
+                lineClasses +=
+                  'bg-[#92FFFF] shadow-[0_0_8px_rgba(146,255,255,0.7)]';
+              } else if (isLineDemon) {
+                lineClasses +=
+                  'bg-[#CF81FF] shadow-[0_0_8px_rgba(207,129,255,0.7)]';
+              } else if (isActif && isNextActif) {
+                lineClasses +=
+                  'bg-red-500 shadow-[0_0_8px_rgba(220,38,38,0.7)]';
+              } else {
+                lineClasses += 'bg-neutral-800/80';
+              }
+
               return (
                 <div key={cycle} className='flex items-center'>
-                  <div
-                    className={`shrink-0 ${
-                      isZoomed ? 'w-10 h-10 text-base' : 'w-6 h-6 text-[10px]'
-                    } rounded-full flex items-center justify-center font-bold font-sans ${
-                      isActif
-                        ? 'bg-red-600 text-white shadow-[0_0_25px_8px_rgba(220,38,38,0.7)] border border-red-400'
-                        : 'bg-neutral-800/80 text-neutral-500'
-                    } texte-contour-fin`}>
-                    {cycle === 1
-                      ? 'I'
-                      : cycle === 2
-                      ? 'II'
-                      : cycle === 3
-                      ? 'III'
-                      : cycle === 4
-                      ? 'IV'
-                      : 'V'}
+                  <div className='relative flex items-center justify-center'>
+                    {isStandaloneAnge && (
+                      <span
+                        className={`absolute ${
+                          isZoomed ? '-top-6 text-[10px]' : '-top-4 text-[7px]'
+                        } text-[#92FFFF] font-black uppercase tracking-wider drop-shadow-[0_0_5px_rgba(146,255,255,0.8)] texte-contour-fin z-40`}>
+                        Ange
+                      </span>
+                    )}
+                    {isStandaloneDemon && (
+                      <span
+                        className={`absolute ${
+                          isZoomed
+                            ? '-bottom-6 text-[10px]'
+                            : '-bottom-4 text-[7px]'
+                        } text-[#CF81FF] font-black uppercase tracking-wider drop-shadow-[0_0_5px_rgba(207,129,255,0.8)] texte-contour-fin z-40`}>
+                        Démon
+                      </span>
+                    )}
+
+                    <div className={`${wrapperClasses} ${shadowClasses}`}>
+                      <div
+                        className={`shrink-0 ${
+                          isZoomed
+                            ? 'w-10 h-10 text-base'
+                            : 'w-6 h-6 text-[9px]'
+                        } rounded-full flex items-center justify-center font-bold font-sans ${
+                          isActif
+                            ? 'bg-[#A80000] text-white border border-black/50'
+                            : 'bg-neutral-900 text-neutral-600'
+                        } texte-contour-fin`}>
+                        {cycle === 1
+                          ? 'I'
+                          : cycle === 2
+                          ? 'II'
+                          : cycle === 3
+                          ? 'III'
+                          : cycle === 4
+                          ? 'IV'
+                          : 'V'}
+                      </div>
+                    </div>
                   </div>
+
                   {index < 4 && (
-                    <div
-                      className={`h-1.5 transition-all ${
-                        isZoomed ? 'w-9' : 'w-7'
-                      } ${
-                        isActif && isNextActif
-                          ? 'bg-red-500 shadow-[0_0_10px_rgba(220,38,38,0.8)]'
-                          : 'bg-neutral-800/80'
-                      }`}
-                    />
+                    <div className={lineClasses}>
+                      {isFirstLineAnge && (
+                        <span
+                          className={`absolute ${
+                            isZoomed
+                              ? '-top-5 text-[10px]'
+                              : '-top-4 text-[7px]'
+                          } left-1/2 -translate-x-1/2 text-[#92FFFF] font-black uppercase tracking-wider drop-shadow-[0_0_5px_rgba(146,255,255,0.8)] texte-contour-fin z-40`}>
+                          Ange
+                        </span>
+                      )}
+                      {isFirstLineDemon && (
+                        <span
+                          className={`absolute ${
+                            isZoomed
+                              ? isLineAnge
+                                ? '-bottom-5'
+                                : '-top-5'
+                              : isLineAnge
+                              ? '-bottom-4'
+                              : '-top-4'
+                          } ${
+                            isZoomed ? 'text-[10px]' : 'text-[7px]'
+                          } left-1/2 -translate-x-1/2 text-[#CF81FF] font-black uppercase tracking-wider drop-shadow-[0_0_5px_rgba(207,129,255,0.8)] texte-contour-fin z-40`}>
+                          Démon
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               );
@@ -459,4 +551,3 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
     </motion.div>
   );
 }
-// KAN-1 : Test de synchronisation Jira réussi !

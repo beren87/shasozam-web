@@ -9,8 +9,10 @@ export default function useGestionFormulaire() {
     type: 'Serviteur',
     ame: 1,
     cout_ame: 0,
-    couts_sceaux: [], // 👈 NOUVEAU : Une liste vide pour accueillir plusieurs sceaux !
+    couts_sceaux: [],
     cycles: [],
+    cyclesAnge: [], // 👈 NOUVEAU : Mémoire pour les cycles Ange
+    cyclesDemon: [], // 👈 NOUVEAU : Mémoire pour les cycles Démon
     effetBrut: '',
     effetVictoire: '',
     publiee: true,
@@ -39,7 +41,25 @@ export default function useGestionFormulaire() {
     });
   };
 
-  // 👇 NOUVELLES FONCTIONS POUR LES SCEAUX MULTIPLES 👇
+  // 👇 NOUVELLES FONCTIONS : Gestion des cycles Ange et Démon 👇
+  const gererCyclesAnge = (num) => {
+    setForm((prev) => {
+      const nouveaux = prev.cyclesAnge.includes(num)
+        ? prev.cyclesAnge.filter((c) => c !== num)
+        : [...prev.cyclesAnge, num].sort();
+      return { ...prev, cyclesAnge: nouveaux };
+    });
+  };
+
+  const gererCyclesDemon = (num) => {
+    setForm((prev) => {
+      const nouveaux = prev.cyclesDemon.includes(num)
+        ? prev.cyclesDemon.filter((c) => c !== num)
+        : [...prev.cyclesDemon, num].sort();
+      return { ...prev, cyclesDemon: nouveaux };
+    });
+  };
+
   const ajouterCoutSceau = () => {
     setForm((prev) => ({
       ...prev,
@@ -61,7 +81,6 @@ export default function useGestionFormulaire() {
       couts_sceaux: prev.couts_sceaux.filter((_, i) => i !== index),
     }));
   };
-  // 👆 FIN DES NOUVELLES FONCTIONS 👆
 
   const gererImage = (e) => {
     const file = e.target.files[0];
@@ -82,7 +101,9 @@ export default function useGestionFormulaire() {
       ame: 1,
       cout_ame: 0,
       couts_sceaux: [],
-      cycles: [], // Réinitialise la liste
+      cycles: [],
+      cyclesAnge: [], // 👈 NOUVEAU
+      cyclesDemon: [], // 👈 NOUVEAU
       effetBrut: '',
       effetVictoire: '',
       publiee: true,
@@ -93,7 +114,12 @@ export default function useGestionFormulaire() {
   };
 
   const preparerEdition = (carte) => {
-    setForm({ ...carte, couts_sceaux: carte.couts_sceaux || [] }); // Charge les sceaux existants
+    setForm({
+      ...carte,
+      couts_sceaux: carte.couts_sceaux || [],
+      cyclesAnge: carte.cyclesAnge || [], // 👈 NOUVEAU
+      cyclesDemon: carte.cyclesDemon || [], // 👈 NOUVEAU
+    });
     setIdEdition(carte.id);
     setImageFile(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -105,11 +131,13 @@ export default function useGestionFormulaire() {
     imageFile,
     gererChangement,
     gererCycles,
+    gererCyclesAnge, // 👈 Exporté
+    gererCyclesDemon, // 👈 Exporté
     gererImage,
     resetForm,
     preparerEdition,
     ajouterCoutSceau,
     modifierCoutSceau,
-    supprimerCoutSceau, // 👈 On les exporte !
+    supprimerCoutSceau,
   };
 }

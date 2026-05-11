@@ -5,6 +5,9 @@ export default function FormulaireCarte({
   idEdition,
   gererChangement,
   gererCycles,
+  // 👇 KAN-23 : On récupère nos deux nouvelles fonctions
+  gererCyclesAnge,
+  gererCyclesDemon,
   gererImage,
   sauvegarderCarte,
   resetForm,
@@ -66,7 +69,6 @@ export default function FormulaireCarte({
           />
           {form.imageUrl && (
             <div className='mt-4 w-full h-32 relative bg-neutral-900 border border-neutral-700 rounded-xl overflow-hidden flex items-center justify-center'>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={form.imageUrl}
                 alt='Aperçu'
@@ -114,7 +116,6 @@ export default function FormulaireCarte({
             <button
               type='button'
               onClick={ajouterCoutSceau}
-              // KAN-26 : Ajout de cursor-pointer ici
               className='bg-red-600 hover:bg-red-500 text-white font-black text-xs px-3 py-1 rounded-lg transition-colors cursor-pointer'>
               + AJOUTER UN SCEAU
             </button>
@@ -146,7 +147,6 @@ export default function FormulaireCarte({
               <button
                 type='button'
                 onClick={() => supprimerCoutSceau(index)}
-                // KAN-26 : Ajout de cursor-pointer ici
                 className='text-red-500 hover:text-red-400 font-bold px-2 cursor-pointer'>
                 X
               </button>
@@ -154,35 +154,103 @@ export default function FormulaireCarte({
           ))}
         </div>
 
-        <div>
-          <label className='block text-[10px] uppercase font-bold text-gray-500 mb-2'>
-            Cycles de Duel (clique pour activer)
+        {/* 👇 KAN-23 : LA NOUVELLE ZONE DES CYCLES (STANDARD, ANGE, DEMON) 👇 */}
+        <div className='bg-neutral-950 p-4 rounded-xl border border-neutral-800 space-y-4'>
+          <label className='block text-[10px] uppercase font-bold text-gray-500'>
+            Alignements & Cycles de Duel
           </label>
-          <div className='flex gap-2'>
-            {[1, 2, 3, 4, 5].map((num) => (
-              <button
-                key={num}
-                type='button'
-                onClick={() => gererCycles(num)}
-                // KAN-26 : Ajout de cursor-pointer ici
-                className={`w-10 h-10 rounded-full border-2 font-bold transition-all cursor-pointer ${
-                  form.cycles.includes(num)
-                    ? 'bg-red-600 border-red-400 text-white scale-110'
-                    : 'bg-black border-neutral-800 text-neutral-600'
-                }`}>
-                {num === 1
-                  ? 'I'
-                  : num === 2
-                  ? 'II'
-                  : num === 3
-                  ? 'III'
-                  : num === 4
-                  ? 'IV'
-                  : 'V'}
-              </button>
-            ))}
+
+          {/* Ligne 1 : Standard (Rouge) */}
+          <div className='flex items-center gap-4'>
+            <span className='w-20 text-[10px] font-bold text-gray-400 uppercase'>
+              Standard
+            </span>
+            <div className='flex gap-2'>
+              {[1, 2, 3, 4, 5].map((num) => (
+                <button
+                  key={`std-${num}`}
+                  type='button'
+                  onClick={() => gererCycles(num)}
+                  className={`w-8 h-8 rounded-full border-2 font-bold transition-all cursor-pointer text-xs ${
+                    form.cycles?.includes(num)
+                      ? 'bg-red-600 border-red-400 text-white scale-110 shadow-[0_0_10px_rgba(220,38,38,0.5)]'
+                      : 'bg-black border-neutral-800 text-neutral-600'
+                  }`}>
+                  {num === 1
+                    ? 'I'
+                    : num === 2
+                    ? 'II'
+                    : num === 3
+                    ? 'III'
+                    : num === 4
+                    ? 'IV'
+                    : 'V'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Ligne 2 : Ange (Cyan) */}
+          <div className='flex items-center gap-4'>
+            <span className='w-20 text-[10px] font-bold text-[#92FFFF] uppercase drop-shadow-[0_0_5px_rgba(146,255,255,0.5)]'>
+              Ange
+            </span>
+            <div className='flex gap-2'>
+              {[1, 2, 3, 4, 5].map((num) => (
+                <button
+                  key={`ange-${num}`}
+                  type='button'
+                  onClick={() => gererCyclesAnge(num)}
+                  className={`w-8 h-8 rounded-full border-2 font-bold transition-all cursor-pointer text-xs ${
+                    form.cyclesAnge?.includes(num)
+                      ? 'bg-[#92FFFF] border-white text-black scale-110 shadow-[0_0_10px_rgba(146,255,255,0.8)]'
+                      : 'bg-black border-neutral-800 text-neutral-600'
+                  }`}>
+                  {num === 1
+                    ? 'I'
+                    : num === 2
+                    ? 'II'
+                    : num === 3
+                    ? 'III'
+                    : num === 4
+                    ? 'IV'
+                    : 'V'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Ligne 3 : Démon (Violet) */}
+          <div className='flex items-center gap-4'>
+            <span className='w-20 text-[10px] font-bold text-[#CF81FF] uppercase drop-shadow-[0_0_5px_rgba(207,129,255,0.5)]'>
+              Démon
+            </span>
+            <div className='flex gap-2'>
+              {[1, 2, 3, 4, 5].map((num) => (
+                <button
+                  key={`demon-${num}`}
+                  type='button'
+                  onClick={() => gererCyclesDemon(num)}
+                  className={`w-8 h-8 rounded-full border-2 font-bold transition-all cursor-pointer text-xs ${
+                    form.cyclesDemon?.includes(num)
+                      ? 'bg-[#CF81FF] border-white text-black scale-110 shadow-[0_0_10px_rgba(207,129,255,0.8)]'
+                      : 'bg-black border-neutral-800 text-neutral-600'
+                  }`}>
+                  {num === 1
+                    ? 'I'
+                    : num === 2
+                    ? 'II'
+                    : num === 3
+                    ? 'III'
+                    : num === 4
+                    ? 'IV'
+                    : 'V'}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
+        {/* 👆 FIN DE LA NOUVELLE ZONE 👆 */}
 
         <div>
           <label className='block text-[10px] uppercase font-bold text-gray-500 mb-1'>
@@ -232,13 +300,11 @@ export default function FormulaireCarte({
           <button
             type='button'
             onClick={resetForm}
-            // KAN-26 : Ajout de cursor-pointer ici
             className='flex-1 bg-neutral-800 hover:bg-neutral-700 py-4 rounded-2xl font-bold uppercase text-xs transition-all cursor-pointer'>
             Annuler
           </button>
           <button
             type='submit'
-            // KAN-26 : Ajout de cursor-pointer ici
             className='flex-2 bg-red-600 hover:bg-red-500 py-4 rounded-2xl font-black uppercase text-sm shadow-lg shadow-red-900/20 transition-all cursor-pointer'>
             {idEdition ? 'Mettre à jour' : 'Forger la carte'}
           </button>

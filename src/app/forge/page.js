@@ -44,6 +44,8 @@ export default function AdminPage() {
     imageFile,
     gererChangement,
     gererCycles,
+    gererCyclesAnge, // 👈 AJOUT KAN-23
+    gererCyclesDemon, // 👈 AJOUT KAN-23
     gererImage,
     resetForm,
     preparerEdition,
@@ -60,6 +62,14 @@ export default function AdminPage() {
     setIsDirty(true);
     gererCycles(e);
   };
+  const gererCyclesAngeAvecDirty = (e) => {
+    setIsDirty(true);
+    gererCyclesAnge(e);
+  }; // 👈 AJOUT KAN-23
+  const gererCyclesDemonAvecDirty = (e) => {
+    setIsDirty(true);
+    gererCyclesDemon(e);
+  }; // 👈 AJOUT KAN-23
   const gererImageAvecDirty = (e) => {
     setIsDirty(true);
     gererImage(e);
@@ -229,6 +239,8 @@ export default function AdminPage() {
             idEdition={idEdition}
             gererChangement={gererChangementAvecDirty}
             gererCycles={gererCyclesAvecDirty}
+            gererCyclesAnge={gererCyclesAngeAvecDirty} // 👈 AJOUT KAN-23
+            gererCyclesDemon={gererCyclesDemonAvecDirty} // 👈 AJOUT KAN-23
             gererImage={gererImageAvecDirty}
             sauvegarderCarte={sauvegarderCarte}
             resetForm={() => {
