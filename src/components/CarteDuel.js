@@ -205,7 +205,6 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
                 top='top-[70%]'
                 text='Effet démoniaque brut, indiquant l’effet appliqué à la carte ciblée + effet supplémentaire.'
               />
-              {/* KAN-24: On remonte l'effet victoire de 85% à 82% */}
               <InfoBubble
                 side='left'
                 top='top-[82%]'
@@ -224,20 +223,21 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
               />
               <InfoBubble
                 side='right'
-                top='top-[3%]'
+                top='top-[8%]'
                 text='Âme : Puissance de la carte.'
               />
+
               {carte.type &&
                 !carte.type.toLowerCase().includes('serviteur') &&
                 !carte.type.toLowerCase().includes('tentat') &&
                 !carte.type.toLowerCase().includes('aberration') && (
                   <InfoBubble
                     side='right'
-                    top='top-[16%]'
+                    // 👇 KAN-25 paufinage : On descend la bulle de 25% à 29% 👇
+                    top='top-[29%]'
                     text='Coût en jeton d’Âme et/ou Sceau.'
                   />
                 )}
-              {/* KAN-24: On descend le cycle de 55% à 60% */}
               <InfoBubble
                 side='right'
                 top='top-[58%]'
@@ -299,7 +299,6 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
             </span>
           </div>
 
-          {/* 👇 KAN-27 : CORRECTION DES CYCLES (Tailles, débordements, texte Ange/Démon) 👇 */}
           <div
             className={`absolute top-[58%] left-[8%] w-[84%] h-[8%] flex justify-center items-center z-30`}>
             {[1, 2, 3, 4, 5].map((cycle, index) => {
@@ -349,7 +348,6 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
                   'bg-neutral-800 border border-neutral-700/50 p-0';
               }
 
-              // On raccourcit la ligne (w-4 unzoomed, w-6 zoomed) pour ne pas déborder
               let lineClasses = `h-1.5 transition-all ${
                 isZoomed ? 'w-6' : 'w-4'
               } relative `;
@@ -372,7 +370,6 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
               return (
                 <div key={cycle} className='flex items-center'>
                   <div className='relative flex items-center justify-center'>
-                    {/* Le texte remonte (top devient plus négatif, bottom devient plus négatif) */}
                     {isStandaloneAnge && (
                       <span
                         className={`absolute ${
@@ -396,7 +393,6 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
 
                     <div className={`${wrapperClasses} ${shadowClasses}`}>
                       <div
-                        // Les inactifs (w-[18px]) sont maintenant plus petits que les actifs (w-[22px])
                         className={`shrink-0 ${
                           isZoomed
                             ? isActif
@@ -458,41 +454,44 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
             })}
           </div>
 
-          <div className='absolute top-[16%] right-[5%] w-[25%] flex flex-col items-end gap-1 z-30'>
+          {/* 👇 KAN-25 : Correction de l'alignement et de la taille des coûts (Paufinage Pixel) 👇 */}
+          <div
+            // 👇 KAN-25 paufinage : On descend le bloc complet de 16% à 20% 👇
+            className='absolute top-[20%] right-[5%] flex flex-col items-end gap-1 z-30'>
             {carte.cout_ame > 0 && (
               <div
-                className={`px-1 rounded-lg flex items-center ${
+                className={`px-1 rounded-lg flex items-center justify-end ${
                   isZoomed ? 'gap-2' : 'gap-1'
                 }`}>
                 <span
-                  className={`${
+                  className={`text-right font-black text-white font-sans ${
                     isZoomed
-                      ? 'text-[35px] texte-contour'
-                      : 'text-lg texte-contour-fin'
-                  } font-black text-white font-sans`}>
+                      ? 'text-[35px] w-18 texte-contour'
+                      : 'text-lg w-10 texte-contour-fin'
+                  }`}>
                   +{carte.cout_ame}
                 </span>
                 <img
                   src='/symbole-ame.png'
                   alt='Coût Âme'
-                  className={`${
-                    isZoomed ? 'w-10 h-10' : 'w-5 h-5'
-                  } object-contain`}
+                  className={`shrink-0 object-contain ${
+                    isZoomed ? 'w-16 h-16' : 'w-8 h-8'
+                  }`}
                 />
               </div>
             )}
             {carte.couts_sceaux?.map((cout, index) => (
               <div
                 key={index}
-                className={`px-1 rounded-lg flex items-center ${
+                className={`px-1 rounded-lg flex items-center justify-end ${
                   isZoomed ? 'gap-2' : 'gap-1'
                 }`}>
                 <span
-                  className={`${
+                  className={`text-right font-black text-white font-sans ${
                     isZoomed
-                      ? 'text-[35px] texte-contour'
-                      : 'text-lg texte-contour-fin'
-                  } font-black text-white font-sans`}>
+                      ? 'text-[35px] w-18 texte-contour'
+                      : 'text-lg w-10 texte-contour-fin'
+                  }`}>
                   +{cout.qte}
                 </span>
                 <img
@@ -504,9 +503,9 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
                       : '/sceau-ancestral.png'
                   }
                   alt={cout.type}
-                  className={`${
-                    isZoomed ? 'w-10 h-10' : 'w-5 h-5'
-                  } object-contain`}
+                  className={`shrink-0 object-contain ${
+                    isZoomed ? 'w-16 h-16' : 'w-8 h-8'
+                  }`}
                 />
               </div>
             ))}
