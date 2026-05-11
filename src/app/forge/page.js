@@ -2,6 +2,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
+// KAN-12 : On importe motion et AnimatePresence pour animer notre notification
+import { motion, AnimatePresence } from 'framer-motion';
+
 import { auth, db, storage } from '../../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
@@ -18,8 +21,6 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import FormulaireCarte from '../../components/FormulaireCarte';
 import ListeCartes from '../../components/ListeCartes';
 import useGestionFormulaire from '../../hooks/useGestionFormulaire';
-
-// KAN-19 : On importe la modale de sécurité
 import ModalConfirmation from '../../components/ModalConfirmation';
 
 const ADMIN_UIDS = ['IfCNStfQ1WN4KZvLIsYRjEX5l9g2'];
@@ -31,9 +32,11 @@ export default function AdminPage() {
   const [erreur, setErreur] = useState(null);
   const [toutesLesCartes, setToutesLesCartes] = useState([]);
 
-  // KAN-19 : Nos deux nouvelles mémoires pour la modale
-  const [isDirty, setIsDirty] = useState(false); // Le formulaire a-t-il été modifié ?
-  const [showModal, setShowModal] = useState(false); // Doit-on afficher la modale ?
+  // États pour les modales et notifications
+  const [isDirty, setIsDirty] = useState(false);
+  const [showModalQuitter, setShowModalQuitter] = useState(false);
+  const [carteASupprimer, setCarteASupprimer] = useState(null); // KAN-12 : Mémorise la carte à supprimer
+  const [notification, setNotification] = useState(null); // KAN-12 : Le message de succès en vert
 
   const {
     form,
@@ -49,7 +52,6 @@ export default function AdminPage() {
     supprimerCoutSceau,
   } = useGestionFormulaire();
 
-  // KAN-19 : On crée des fonctions intermédiaires qui activent l'alarme "isDirty"
   const gererChangementAvecDirty = (e) => {
     setIsDirty(true);
     gererChangement(e);
@@ -73,6 +75,14 @@ export default function AdminPage() {
   const supprimerCoutSceauAvecDirty = (index) => {
     setIsDirty(true);
     supprimerCoutSceau(index);
+  };
+
+  // KAN-12 : Fonction pour afficher la phrase en vert pendant 3 secondes
+  const afficherNotification = (message) => {
+    setNotification(message);
+    setTimeout(() => {
+      setNotification(null);
+    }, 3000);
   };
 
   const chargerCartes = useCallback(async () => {
@@ -111,12 +121,11 @@ export default function AdminPage() {
     return () => unsubscribe();
   }, [router, chargerCartes]);
 
-  // KAN-19 : Fonction qui décide si on part ou si on affiche l'alerte
   const handleBackAttempt = () => {
     if (isDirty) {
-      setShowModal(true); // Alerte !
+      setShowModalQuitter(true);
     } else {
-      router.push('/admin'); // Tout va bien, on rentre au menu
+      router.push('/admin');
     }
   };
 
@@ -133,26 +142,23 @@ export default function AdminPage() {
         dataASauvegarder.imageUrl = urlImage;
       }
 
-      // 👇 KAN-18 : LE TAMPON DES MÉTADONNÉES 👇
-      const maintenant = new Date().toISOString(); // L'heure exacte actuelle
-      // On récupère le pseudo de l'admin (ou son email s'il n'a pas de pseudo)
+      const maintenant = new Date().toISOString();
       const auteurActuel =
         auth.currentUser?.displayName || auth.currentUser?.email || 'Admin';
 
-      // On met à jour la date de modification à chaque fois
       dataASauvegarder.dateModification = maintenant;
       dataASauvegarder.auteur = auteurActuel;
 
       if (idEdition) {
         await updateDoc(doc(db, 'cartes', idEdition), dataASauvegarder);
-        alert('Carte mise à jour !');
+        // KAN-12 : Remplacement du "alert" par notre notification
+        afficherNotification('La carte a été mise à jour avec succès !');
       } else {
-        // Si c'est une toute nouvelle carte, on grave la date de création !
         dataASauvegarder.dateCreation = maintenant;
         await addDoc(collection(db, 'cartes'), dataASauvegarder);
-        alert('Nouvelle carte forgée !');
+        // KAN-12 : Remplacement du "alert" par notre notification
+        afficherNotification('Nouvelle carte forgée avec succès !');
       }
-      // 👆 FIN KAN-18 👆
 
       resetForm();
       setIsDirty(false);
@@ -163,10 +169,18 @@ export default function AdminPage() {
     }
   };
 
-  const supprimerCarte = async (id) => {
-    if (confirm('Voulez-vous vraiment anéantir cette carte ?')) {
-      await deleteDoc(doc(db, 'cartes', id));
+  // KAN-12 : La suppression déclenche d'abord notre propre modale
+  const preparerSuppression = (id) => {
+    setCarteASupprimer(id);
+  };
+
+  // KAN-12 : La fonction qui supprime réellement après confirmation
+  const confirmerSuppression = async () => {
+    if (carteASupprimer) {
+      await deleteDoc(doc(db, 'cartes', carteASupprimer));
       await chargerCartes();
+      setCarteASupprimer(null);
+      afficherNotification('La carte a été anéantie avec succès !');
     }
   };
 
@@ -183,7 +197,20 @@ export default function AdminPage() {
     );
 
   return (
-    <main className='min-h-screen bg-neutral-950 text-white p-4 md:p-12 relative'>
+    <main className='min-h-screen bg-neutral-950 text-white p-4 md:p-12 relative overflow-hidden'>
+      {/* KAN-12 : LA NOTIFICATION EN VERT EN HAUT DE L'ÉCRAN */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className='fixed top-8 left-1/2 -translate-x-1/2 z-[2000] bg-green-600/90 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-sm border border-green-400 shadow-[0_0_30px_rgba(22,163,74,0.3)] backdrop-blur-md flex items-center gap-3'>
+            <span>✅</span> {notification}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className='max-w-6xl mx-auto'>
         <div className='flex justify-between items-center mb-12'>
           <h1 className='text-4xl font-black uppercase italic tracking-tighter'>
@@ -191,7 +218,7 @@ export default function AdminPage() {
           </h1>
           <button
             onClick={handleBackAttempt}
-            className='bg-neutral-800 px-6 py-2 rounded-xl text-xs font-bold uppercase border border-neutral-700 hover:bg-neutral-700 transition-colors'>
+            className='bg-neutral-800 px-6 py-2 rounded-xl text-xs font-bold uppercase border border-neutral-700 hover:bg-neutral-700 transition-colors cursor-pointer'>
             Retour au Back-office
           </button>
         </div>
@@ -217,22 +244,31 @@ export default function AdminPage() {
             toutesLesCartes={toutesLesCartes}
             preparerEdition={(carte) => {
               preparerEdition(carte);
-              setIsDirty(false); // Pas d'alarme juste en ouvrant une carte
+              setIsDirty(false);
             }}
-            supprimerCarte={supprimerCarte}
+            // KAN-12 : On envoie la carte vers notre modale au lieu de supprimer direct
+            supprimerCarte={preparerSuppression}
           />
         </div>
       </div>
 
-      {/* KAN-19 : Notre nouvelle modale s'affiche par-dessus tout le reste */}
+      {/* Modale pour le bouton retour (existante) */}
       <ModalConfirmation
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        isOpen={showModalQuitter}
+        onClose={() => setShowModalQuitter(false)}
         onConfirm={() => {
           setIsDirty(false);
-          setShowModal(false);
+          setShowModalQuitter(false);
           router.push('/admin');
         }}
+      />
+
+      {/* KAN-12 : Nouvelle modale pour confirmer la suppression */}
+      <ModalConfirmation
+        isOpen={!!carteASupprimer}
+        onClose={() => setCarteASupprimer(null)}
+        onConfirm={confirmerSuppression}
+        message='Voulez-vous vraiment anéantir cette carte ? Cette action est définitive et la carte sera effacée des registres infernaux.'
       />
     </main>
   );
