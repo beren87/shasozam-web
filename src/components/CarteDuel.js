@@ -205,9 +205,10 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
                 top='top-[70%]'
                 text='Effet démoniaque brut, indiquant l’effet appliqué à la carte ciblée + effet supplémentaire.'
               />
+              {/* KAN-24: On remonte l'effet victoire de 85% à 82% */}
               <InfoBubble
                 side='left'
-                top='top-[85%]'
+                top='top-[82%]'
                 text={
                   <span className='flex flex-col gap-1'>
                     <span>
@@ -236,9 +237,10 @@ export default function CarteDuel({ carte, onZoom, isZoomed = false }) {
                     text='Coût en jeton d’Âme et/ou Sceau.'
                   />
                 )}
+              {/* KAN-24: On descend le cycle de 55% à 60% */}
               <InfoBubble
                 side='right'
-                top='top-[55%]'
+                top='top-[58%]'
                 text='Cycle de duel (1 à 5) : gagne +1 Âme si respecté.'
               />
             </div>
