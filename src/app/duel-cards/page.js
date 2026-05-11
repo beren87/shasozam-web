@@ -6,14 +6,14 @@ import { auth, db } from '../../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 
-// NOUVEAU : On importe notre super brique de Carte !
+// On importe notre super brique de Carte !
 import CarteDuel from '../../components/CarteDuel';
 
 export default function DuelCardsPage() {
   const router = useRouter();
   const [chargement, setChargement] = useState(true);
   const [carteZoom, setCarteZoom] = useState(null);
-  const [categories, setCategories] = useState({});
+  const [toutesLesCartes, setToutesLesCartes] = useState([]); // KAN-11 : On stocke toutes les cartes ici
   const [erreur, setErreur] = useState(null);
 
   useEffect(() => {
@@ -26,16 +26,11 @@ export default function DuelCardsPage() {
           ...doc.data(),
         }));
 
+        // On trie d'abord toutes les cartes par ordre alphabétique
         data.sort((a, b) => a.nom.localeCompare(b.nom));
 
-        const grimoireOrganise = data.reduce((acc, carte) => {
-          const type = carte.type || 'Inconnu';
-          if (!acc[type]) acc[type] = [];
-          acc[type].push(carte);
-          return acc;
-        }, {});
-
-        setCategories(grimoireOrganise);
+        // KAN-11 : On met les cartes dans l'état, on les triera à l'affichage
+        setToutesLesCartes(data);
       } catch (err) {
         console.error('Erreur chargement:', err);
         setErreur(err.message);
@@ -54,6 +49,44 @@ export default function DuelCardsPage() {
 
     return () => unsubscribe();
   }, [router]);
+
+  // 👇 KAN-11 : LOGIQUE DE TRI ET DE REGROUPEMENT 👇
+  const ordreVoulu = [
+    'Serviteurs',
+    'Tentateurs / Tentatrices',
+    'Aberrations',
+    'Gardiens',
+    'Invocateurs / Invocatrices',
+    'Démons',
+  ];
+
+  const getGroupe = (type) => {
+    if (!type) return 'Inconnus';
+    const t = type.toLowerCase();
+    if (t.includes('serviteur')) return 'Serviteurs';
+    if (t.includes('tentat')) return 'Tentateurs / Tentatrices';
+    if (t.includes('aberration')) return 'Aberrations';
+    if (t.includes('gardien')) return 'Gardiens';
+    if (t.includes('invocat')) return 'Invocateurs / Invocatrices';
+    if (t.includes('démon') || t.includes('demon')) return 'Démons';
+    return type;
+  };
+
+  const cartesParType = toutesLesCartes.reduce((acc, carte) => {
+    const groupe = getGroupe(carte.type);
+    if (!acc[groupe]) acc[groupe] = [];
+    acc[groupe].push(carte);
+    return acc;
+  }, {});
+
+  const groupesTries = Object.keys(cartesParType).sort((a, b) => {
+    const indexA = ordreVoulu.indexOf(a);
+    const indexB = ordreVoulu.indexOf(b);
+    const posA = indexA === -1 ? 999 : indexA; // Les inconnus à la fin
+    const posB = indexB === -1 ? 999 : indexB;
+    return posA - posB;
+  });
+  // 👆 FIN DE LA LOGIQUE KAN-11 👆
 
   if (chargement)
     return (
@@ -74,7 +107,6 @@ export default function DuelCardsPage() {
 
   return (
     <main className='min-h-screen bg-neutral-800 text-gray-100 flex flex-col relative pb-32'>
-      {/* BARRE DE NAVIGATION FLOTTANTE */}
       <div className='fixed top-4 left-0 right-0 z-[150] flex justify-center px-4 pointer-events-none'>
         <div className='w-full max-w-6xl flex justify-between items-center bg-neutral-800/90 backdrop-blur-md p-4 rounded-2xl border border-neutral-600 shadow-2xl pointer-events-auto'>
           <button
@@ -100,31 +132,38 @@ export default function DuelCardsPage() {
       </div>
 
       <div className='flex flex-col gap-20 z-10 w-full max-w-7xl mx-auto px-4'>
-        {Object.entries(categories).map(([type, cards]) => (
-          <section key={type} className='w-full'>
-            <div className='flex items-center gap-4 mb-10 bg-neutral-900 p-6 rounded-2xl border-l-8 border-red-600 border border-neutral-700 shadow-xl'>
-              <h2 className='text-3xl font-black uppercase text-white tracking-widest leading-none'>
-                {type}s
-              </h2>
-            </div>
+        {/* KAN-11 : On utilise notre liste triée ! */}
+        {groupesTries.map((type) => {
+          const cards = cartesParType[type];
+          return (
+            <section key={type} className='w-full'>
+              <div className='flex items-center gap-4 mb-10 bg-neutral-900 p-6 rounded-2xl border-l-8 border-red-600 border border-neutral-700 shadow-xl'>
+                <h2 className='text-3xl font-black uppercase text-white tracking-widest leading-none'>
+                  {type}{' '}
+                  {/* Plus de "s" rajouté à la fin, nos étiquettes sont déjà au pluriel ! */}
+                </h2>
+              </div>
 
-            {/* AFFICHAGE DE LA GRILLE DE CARTES */}
-            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-12 justify-items-center'>
-              {cards.map((carte) => (
-                <CarteDuel key={carte.id} carte={carte} onZoom={setCarteZoom} />
-              ))}
-            </div>
-          </section>
-        ))}
+              <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-12 justify-items-center'>
+                {cards.map((carte) => (
+                  <CarteDuel
+                    key={carte.id}
+                    carte={carte}
+                    onZoom={setCarteZoom}
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })}
 
-        {Object.keys(categories).length === 0 && (
+        {groupesTries.length === 0 && (
           <div className='text-center py-40 text-gray-600 italic'>
             Le Grimoire est vide. Allez forger des cartes en mode Admin.
           </div>
         )}
       </div>
 
-      {/* MODALE DE ZOOM SUR UNE CARTE */}
       <AnimatePresence>
         {carteZoom && (
           <motion.div
@@ -140,9 +179,7 @@ export default function DuelCardsPage() {
             </button>
             <div
               onClick={(e) => e.stopPropagation()}
-              // 👇 Le fix est ici : on force la boîte à prendre la largeur (w-full) et à centrer la carte 👇
               className='relative z-[205] my-auto w-full flex justify-center'>
-              {/* ON UTILISE NOTRE BRIQUE EN MODE ZOOM */}
               <CarteDuel carte={carteZoom} isZoomed={true} onZoom={() => {}} />
             </div>
           </motion.div>
