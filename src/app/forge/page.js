@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
-// NOUVEAU : On importe 'storage' de ton fichier firebase
 import { auth, db, storage } from '../../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
@@ -14,12 +13,14 @@ import {
   deleteDoc,
 } from 'firebase/firestore';
 
-// NOUVEAU : On importe les outils pour envoyer des fichiers sur Firebase
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import FormulaireCarte from '../../components/FormulaireCarte';
 import ListeCartes from '../../components/ListeCartes';
 import useGestionFormulaire from '../../hooks/useGestionFormulaire';
+
+// KAN-19 : On importe la modale de sécurité
+import ModalConfirmation from '../../components/ModalConfirmation';
 
 const ADMIN_UIDS = ['IfCNStfQ1WN4KZvLIsYRjEX5l9g2'];
 
@@ -30,8 +31,10 @@ export default function AdminPage() {
   const [erreur, setErreur] = useState(null);
   const [toutesLesCartes, setToutesLesCartes] = useState([]);
 
-  // On récupère nos outils de formulaire, dont les nouveaux "imageFile" et "gererImage"
-  // On récupère nos outils de formulaire, dont les nouveaux pour les sceaux !
+  // KAN-19 : Nos deux nouvelles mémoires pour la modale
+  const [isDirty, setIsDirty] = useState(false); // Le formulaire a-t-il été modifié ?
+  const [showModal, setShowModal] = useState(false); // Doit-on afficher la modale ?
+
   const {
     form,
     idEdition,
@@ -43,8 +46,34 @@ export default function AdminPage() {
     preparerEdition,
     ajouterCoutSceau,
     modifierCoutSceau,
-    supprimerCoutSceau, // 👈 AJOUTE CES 3 LIGNES ICI
+    supprimerCoutSceau,
   } = useGestionFormulaire();
+
+  // KAN-19 : On crée des fonctions intermédiaires qui activent l'alarme "isDirty"
+  const gererChangementAvecDirty = (e) => {
+    setIsDirty(true);
+    gererChangement(e);
+  };
+  const gererCyclesAvecDirty = (e) => {
+    setIsDirty(true);
+    gererCycles(e);
+  };
+  const gererImageAvecDirty = (e) => {
+    setIsDirty(true);
+    gererImage(e);
+  };
+  const ajouterCoutSceauAvecDirty = () => {
+    setIsDirty(true);
+    ajouterCoutSceau();
+  };
+  const modifierCoutSceauAvecDirty = (index, champ, valeur) => {
+    setIsDirty(true);
+    modifierCoutSceau(index, champ, valeur);
+  };
+  const supprimerCoutSceauAvecDirty = (index) => {
+    setIsDirty(true);
+    supprimerCoutSceau(index);
+  };
 
   const chargerCartes = useCallback(async () => {
     try {
@@ -82,26 +111,25 @@ export default function AdminPage() {
     return () => unsubscribe();
   }, [router, chargerCartes]);
 
+  // KAN-19 : Fonction qui décide si on part ou si on affiche l'alerte
+  const handleBackAttempt = () => {
+    if (isDirty) {
+      setShowModal(true); // Alerte !
+    } else {
+      router.push('/admin'); // Tout va bien, on rentre au menu
+    }
+  };
+
   const sauvegarderCarte = async (e) => {
     e.preventDefault();
     try {
-      // On copie le formulaire pour pouvoir le modifier avant de l'envoyer à la base de données
       let dataASauvegarder = { ...form };
 
-      // NOUVEAU : Si l'admin a sélectionné une nouvelle image depuis son ordi...
       if (imageFile) {
-        // On crée un nom de fichier unique (date + nom)
         const nomFichierUnique = `${Date.now()}_${imageFile.name}`;
-        // On cible le dossier "cartes" dans le Storage de Firebase
         const imageRef = ref(storage, `cartes/${nomFichierUnique}`);
-
-        // On envoie physiquement le fichier sur Firebase
         await uploadBytes(imageRef, imageFile);
-
-        // On demande à Firebase le lien public de cette image
         const urlImage = await getDownloadURL(imageRef);
-
-        // On remplace le faux lien temporaire par le vrai lien officiel
         dataASauvegarder.imageUrl = urlImage;
       }
 
@@ -112,13 +140,13 @@ export default function AdminPage() {
         await addDoc(collection(db, 'cartes'), dataASauvegarder);
         alert('Nouvelle carte forgée !');
       }
+
       resetForm();
+      setIsDirty(false); // KAN-19 : On remet l'alarme à zéro car c'est sauvegardé !
       await chargerCartes();
     } catch (error) {
       console.error('Erreur:', error);
-      alert(
-        'Erreur lors de la sauvegarde. Vérifie ta connexion ou les droits Firebase Storage.'
-      );
+      alert('Erreur lors de la sauvegarde.');
     }
   };
 
@@ -142,16 +170,16 @@ export default function AdminPage() {
     );
 
   return (
-    <main className='min-h-screen bg-neutral-950 text-white p-4 md:p-12'>
+    <main className='min-h-screen bg-neutral-950 text-white p-4 md:p-12 relative'>
       <div className='max-w-6xl mx-auto'>
         <div className='flex justify-between items-center mb-12'>
           <h1 className='text-4xl font-black uppercase italic tracking-tighter'>
-            La <span className='text-red-600'>Forge</span> Admin
+            La <span className='text-red-600'>Forge</span>
           </h1>
           <button
-            onClick={() => router.push('/home')}
-            className='bg-neutral-800 px-6 py-2 rounded-xl text-xs font-bold uppercase border border-neutral-700'>
-            Retour au Hub
+            onClick={handleBackAttempt}
+            className='bg-neutral-800 px-6 py-2 rounded-xl text-xs font-bold uppercase border border-neutral-700 hover:bg-neutral-700 transition-colors'>
+            Retour au Back-office
           </button>
         </div>
 
@@ -159,24 +187,40 @@ export default function AdminPage() {
           <FormulaireCarte
             form={form}
             idEdition={idEdition}
-            gererChangement={gererChangement}
-            gererCycles={gererCycles}
-            gererImage={gererImage} // On passe la fonction au formulaire
+            gererChangement={gererChangementAvecDirty}
+            gererCycles={gererCyclesAvecDirty}
+            gererImage={gererImageAvecDirty}
             sauvegarderCarte={sauvegarderCarte}
-            resetForm={resetForm}
-            // 👇 AJOUTE CES 3 LIGNES 👇
-            ajouterCoutSceau={ajouterCoutSceau}
-            modifierCoutSceau={modifierCoutSceau}
-            supprimerCoutSceau={supprimerCoutSceau}
+            resetForm={() => {
+              resetForm();
+              setIsDirty(false);
+            }}
+            ajouterCoutSceau={ajouterCoutSceauAvecDirty}
+            modifierCoutSceau={modifierCoutSceauAvecDirty}
+            supprimerCoutSceau={supprimerCoutSceauAvecDirty}
           />
 
           <ListeCartes
             toutesLesCartes={toutesLesCartes}
-            preparerEdition={preparerEdition}
+            preparerEdition={(carte) => {
+              preparerEdition(carte);
+              setIsDirty(false); // Pas d'alarme juste en ouvrant une carte
+            }}
             supprimerCarte={supprimerCarte}
           />
         </div>
       </div>
+
+      {/* KAN-19 : Notre nouvelle modale s'affiche par-dessus tout le reste */}
+      <ModalConfirmation
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onConfirm={() => {
+          setIsDirty(false);
+          setShowModal(false);
+          router.push('/admin');
+        }}
+      />
     </main>
   );
 }
