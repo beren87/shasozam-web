@@ -247,7 +247,7 @@ export default function HomePage() {
                   <span className='text-xl'>⚙️</span>
                 </button>
                 <div className='absolute top-12 left-1/2 -translate-x-1/2 w-max bg-neutral-700 text-xs text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none text-center border border-neutral-500 z-20 shadow-xl'>
-                  La Forge (Admin)
+                  Back-office (Admin)
                 </div>
               </div>
             )}
