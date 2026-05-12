@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
+// 👇 KAN-37 : Ajout de useRef pour détecter le clic en dehors
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { auth, db } from '../../firebase';
@@ -37,10 +38,14 @@ const ADMIN_UIDS = ['IfCNStfQ1WN4KZvLIsYRjEX5l9g2'];
 
 export default function HomePage() {
   const router = useRouter();
+
+  // 👇 KAN-37 : On crée une référence pour notre menu déroulant
+  const menuRef = useRef(null);
+
   const [joueur, setJoueur] = useState(null);
   const [profil, setProfil] = useState({
     pseudo: '',
-    tagId: '', // 👈 KAN-36 : Ajout de l'ID unique
+    tagId: '',
     avatar: '',
     dernierChangementPseudo: 0,
     sceaux: 0,
@@ -64,6 +69,26 @@ export default function HomePage() {
 
   const [secondesSession, setSecondesSession] = useState(0);
   const [avatarsDispos, setAvatarsDispos] = useState([]);
+
+  // 👇 KAN-37 : Écouteur d'événement pour détecter le clic en dehors du menu
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsMenuOuvert(false);
+      }
+    }
+
+    if (isMenuOuvert) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+
+    // Nettoyage de l'écouteur quand le composant est détruit
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOuvert]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -128,7 +153,6 @@ export default function HomePage() {
     }
   };
 
-  // 👈 KAN-36 : Fonction de génération d'ID
   const genererTagId = () => {
     return '#' + Math.floor(1000000 + Math.random() * 9000000);
   };
@@ -139,7 +163,6 @@ export default function HomePage() {
 
     if (docSnap.exists()) {
       const data = docSnap.data();
-      // 👈 KAN-36 : Rétrocompatibilité, si l'user n'a pas encore de Tag ID on lui en crée un
       if (!data.tagId) {
         const newTag = genererTagId();
         await updateDoc(docRef, { tagId: newTag });
@@ -149,13 +172,12 @@ export default function HomePage() {
     } else {
       const avatarParDefaut = listeAvatars.length > 0 ? listeAvatars[0] : '😈';
 
-      // 👈 KAN-36 : Nouveau nom de 12 caractères max
       let pseudoInit = user.displayName || 'Âme Damnée';
       if (pseudoInit.length > 12) pseudoInit = pseudoInit.substring(0, 12);
 
       const nouveauProfil = {
         pseudo: pseudoInit,
-        tagId: genererTagId(), // 👈 Attribution de l'ID à la création
+        tagId: genererTagId(),
         email: user.email,
         avatar: avatarParDefaut,
         dernierChangementPseudo: 0,
@@ -324,7 +346,8 @@ export default function HomePage() {
 
           <div className='w-px h-8 bg-neutral-700 mx-1 hidden sm:block'></div>
 
-          <div className='relative shrink-0'>
+          {/* 👇 KAN-37 : Ajout de la ref="menuRef" sur ce conteneur parent 👇 */}
+          <div className='relative shrink-0' ref={menuRef}>
             <div
               className='flex flex-col items-center cursor-pointer group'
               onClick={() => setIsMenuOuvert(!isMenuOuvert)}>
@@ -334,7 +357,6 @@ export default function HomePage() {
               <span className='text-[10px] font-black uppercase tracking-tighter text-gray-300 mt-1 group-hover:text-white transition-colors'>
                 {profil.pseudo}
               </span>
-              {/* 👈 KAN-36 : Affichage de l'ID sous le pseudo */}
               <span className='text-[8px] italic text-gray-500 leading-none mt-0.5'>
                 {profil.tagId}
               </span>
@@ -354,7 +376,6 @@ export default function HomePage() {
                     <p className='text-xs font-medium text-red-400 truncate'>
                       {profil.email}
                     </p>
-                    {/* 👈 KAN-36 : Affichage de l'ID dans le menu */}
                     <p className='text-[10px] italic text-gray-500 mt-1'>
                       {profil.tagId}
                     </p>
