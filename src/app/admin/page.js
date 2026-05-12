@@ -13,7 +13,15 @@ export default function AdminDashboard() {
       path: '/forge',
       color: 'hover:border-red-600',
     },
-    // On pourra ajouter ici "Gestion des Joueurs", "Logs", etc. plus tard
+    // 👇 NOUVEAU BLOC AVATARS (KAN-34) 👇
+    {
+      title: 'Avatars',
+      description:
+        'Gérer les avatars, uploader les images et définir ceux par défaut.',
+      icon: '👺',
+      path: '/settings-avatar',
+      color: 'hover:border-purple-600',
+    },
   ];
 
   return (
@@ -41,7 +49,7 @@ export default function AdminDashboard() {
               onClick={() => router.push(block.path)}
               className={`bg-neutral-900 border border-neutral-800 p-8 rounded-2xl cursor-pointer transition-all ${block.color} group`}>
               <div className='text-4xl mb-4'>{block.icon}</div>
-              <h2 className='text-2xl font-black uppercase mb-2 group-hover:text-red-500 transition-colors'>
+              <h2 className='text-2xl font-black uppercase mb-2 group-hover:text-white transition-colors'>
                 {block.title}
               </h2>
               <p className='text-gray-500 text-sm leading-relaxed'>
