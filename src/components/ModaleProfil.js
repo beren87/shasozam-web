@@ -13,6 +13,21 @@ export default function ModaleProfil({
   sauvegarderModifications,
   avatarsDispos,
 }) {
+  // Petite fonction utilitaire pour rendre une image ou un emoji
+  const renderAvatarOption = (avatarValue) => {
+    if (!avatarValue) return null;
+    if (avatarValue.startsWith('http')) {
+      return (
+        <img
+          src={avatarValue}
+          alt='Avatar'
+          className='w-10 h-10 object-cover rounded-lg pointer-events-none'
+        />
+      );
+    }
+    return <span className='text-3xl'>{avatarValue}</span>;
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -25,30 +40,40 @@ export default function ModaleProfil({
             <h2 className='text-xl font-bold mb-6 text-center text-white uppercase tracking-widest'>
               Forger son identité
             </h2>
+
             {erreurModale && (
               <div className='bg-red-900/50 text-red-200 text-xs p-3 rounded mb-4 text-center border border-red-500'>
                 {erreurModale}
               </div>
             )}
+
             <div className='mb-6'>
               <label className='text-xs text-gray-300 uppercase font-bold mb-2 block'>
-                Choisir un Avatar
+                Choisir un Avatar (3 max)
               </label>
-              <div className='flex justify-between bg-neutral-900 p-2 rounded-xl border border-neutral-600'>
-                {avatarsDispos.map((emo) => (
-                  <button
-                    key={emo}
-                    onClick={() => setNouvelAvatar(emo)}
-                    className={`text-3xl p-2 rounded-lg transition-all cursor-pointer ${
-                      nouvelAvatar === emo
-                        ? 'bg-red-900/80 border border-red-400 scale-110'
-                        : 'hover:bg-neutral-700 opacity-60 hover:opacity-100'
-                    }`}>
-                    {emo}
-                  </button>
-                ))}
+
+              <div className='flex justify-center gap-4 bg-neutral-900 p-3 rounded-xl border border-neutral-600 min-h-[70px]'>
+                {avatarsDispos.length > 0 ? (
+                  avatarsDispos.map((avatarUrl, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setNouvelAvatar(avatarUrl)}
+                      className={`relative w-14 h-14 rounded-xl flex items-center justify-center transition-all cursor-pointer overflow-hidden ${
+                        nouvelAvatar === avatarUrl
+                          ? 'bg-red-900/40 border-2 border-red-500 scale-110 shadow-[0_0_15px_rgba(239,68,68,0.4)]'
+                          : 'border border-neutral-700 hover:border-neutral-500 opacity-60 hover:opacity-100 bg-black'
+                      }`}>
+                      {renderAvatarOption(avatarUrl)}
+                    </button>
+                  ))
+                ) : (
+                  <p className='text-xs text-gray-500 italic flex items-center justify-center w-full'>
+                    Aucun avatar par défaut disponible.
+                  </p>
+                )}
               </div>
             </div>
+
             <div className='mb-8'>
               <div className='flex justify-between mb-2'>
                 <label className='text-xs text-gray-300 uppercase font-bold block'>
@@ -74,6 +99,7 @@ export default function ModaleProfil({
                 </p>
               )}
             </div>
+
             <div className='flex gap-4'>
               <button
                 onClick={onClose}

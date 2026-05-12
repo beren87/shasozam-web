@@ -4,7 +4,17 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { auth, db } from '../../firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+// 👇 Ajout de query et where pour filtrer les avatars par défaut
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+} from 'firebase/firestore';
 import { APP_VERSION } from '../../../version';
 
 import BoutonNav from '../../components/BoutonNav';
@@ -23,7 +33,6 @@ const MOTS_INTERDITS = [
   'idiot',
   'connard',
 ];
-const AVATARS_DISPOS = ['🩸', '🔥', '😈', '🌀', '👺'];
 const DELAI_24H_MS = 24 * 60 * 60 * 1000;
 const ADMIN_UIDS = ['IfCNStfQ1WN4KZvLIsYRjEX5l9g2'];
 
@@ -32,7 +41,7 @@ export default function HomePage() {
   const [joueur, setJoueur] = useState(null);
   const [profil, setProfil] = useState({
     pseudo: '',
-    avatar: '😈',
+    avatar: '',
     dernierChangementPseudo: 0,
     sceaux: 0,
     victoires: 0,
@@ -54,6 +63,9 @@ export default function HomePage() {
   const [heureOuverture, setHeureOuverture] = useState(0);
 
   const [secondesSession, setSecondesSession] = useState(0);
+
+  // 👇 KAN-16 : Nouvel état pour stocker les avatars provenant de la BDD
+  const [avatarsDispos, setAvatarsDispos] = useState([]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -102,17 +114,37 @@ export default function HomePage() {
     },
   ];
 
-  const chargerOuCreerProfil = async (user) => {
+  // 👇 KAN-16 : Fonction pour charger les avatars par défaut
+  const chargerAvatarsDefaut = async () => {
+    try {
+      const q = query(
+        collection(db, 'avatars'),
+        where('estDefaut', '==', true)
+      );
+      const snap = await getDocs(q);
+      const liste = snap.docs.map((d) => d.data().imageUrl);
+      setAvatarsDispos(liste);
+      return liste;
+    } catch (error) {
+      console.error('Erreur chargement avatars:', error);
+      return [];
+    }
+  };
+
+  const chargerOuCreerProfil = async (user, listeAvatars) => {
     const docRef = doc(db, 'joueurs', user.uid);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
       setProfil(docSnap.data());
     } else {
+      // Si c'est un nouveau joueur, on lui donne le premier avatar de la BDD s'il existe
+      const avatarParDefaut = listeAvatars.length > 0 ? listeAvatars[0] : '😈';
+
       const nouveauProfil = {
         pseudo: user.displayName || 'Nouveau Souverain',
         email: user.email,
-        avatar: '😈',
+        avatar: avatarParDefaut,
         dernierChangementPseudo: 0,
         sceaux: 0,
         victoires: 0,
@@ -130,7 +162,9 @@ export default function HomePage() {
     return onAuthStateChanged(auth, async (user) => {
       if (user) {
         setJoueur(user);
-        await chargerOuCreerProfil(user);
+        // On charge d'abord les images, puis le profil
+        const listeAvatars = await chargerAvatarsDefaut();
+        await chargerOuCreerProfil(user, listeAvatars);
         setChargement(false);
       } else {
         router.push('/');
@@ -141,7 +175,9 @@ export default function HomePage() {
   const ouvrirModale = () => {
     setHeureOuverture(Date.now());
     setNouveauPseudo(profil.pseudo);
-    setNouvelAvatar(profil.avatar || '😈');
+    setNouvelAvatar(
+      profil.avatar || (avatarsDispos.length > 0 ? avatarsDispos[0] : '😈')
+    );
     setErreurModale('');
     setModaleOuverte(true);
     setIsMenuOuvert(false);
@@ -208,6 +244,21 @@ export default function HomePage() {
     else if (ratio < 50) couleurRatio = 'text-red-400';
   }
 
+  // 👇 Petite fonction pour rendre l'avatar (Image ou Emoji fallback)
+  const renderAvatar = (avatarValue, extraClasses = '') => {
+    if (!avatarValue) return null;
+    if (avatarValue.startsWith('http')) {
+      return (
+        <img
+          src={avatarValue}
+          alt='Avatar'
+          className={`w-full h-full object-cover ${extraClasses}`}
+        />
+      );
+    }
+    return <span className={extraClasses}>{avatarValue}</span>;
+  };
+
   if (chargement)
     return (
       <div className='min-h-screen bg-neutral-900 flex items-center justify-center text-red-500 font-bold uppercase tracking-widest'>
@@ -217,7 +268,7 @@ export default function HomePage() {
 
   return (
     <main className='min-h-screen bg-neutral-900 text-gray-100 flex flex-col items-center p-4 md:p-8 overflow-hidden relative'>
-      {/* HUB BAR ÉPURÉE (KAN-29) */}
+      {/* HUB BAR ÉPURÉE */}
       <div className='w-full max-w-5xl z-[100] relative mb-6 mt-2'>
         <div className='w-full flex flex-wrap justify-end items-center gap-3 md:gap-4'>
           {/* Bouton Admin */}
@@ -263,7 +314,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Séparateur visuel */}
           <div className='w-px h-8 bg-neutral-700 mx-1 hidden sm:block'></div>
 
           {/* Profil Avatar & Menu */}
@@ -271,15 +321,15 @@ export default function HomePage() {
             <div
               className='flex flex-col items-center cursor-pointer group'
               onClick={() => setIsMenuOuvert(!isMenuOuvert)}>
-              <div className='text-4xl bg-neutral-800 w-14 h-14 rounded-full flex items-center justify-center border-2 border-neutral-600 group-hover:border-red-500 transition-colors shadow-lg'>
-                {profil.avatar}
+              {/* 👇 Affichage de l'avatar géré avec image 👇 */}
+              <div className='bg-neutral-800 w-14 h-14 rounded-full flex items-center justify-center border-2 border-neutral-600 group-hover:border-red-500 transition-colors shadow-lg overflow-hidden'>
+                {renderAvatar(profil.avatar, 'text-4xl')}
               </div>
               <span className='text-[10px] font-black uppercase tracking-tighter text-gray-300 mt-1 group-hover:text-white transition-colors'>
                 {profil.pseudo}
               </span>
             </div>
 
-            {/* MENU DÉROULANT */}
             <AnimatePresence>
               {isMenuOuvert && (
                 <motion.div
@@ -364,7 +414,6 @@ export default function HomePage() {
       </nav>
 
       <div className='flex-1 flex flex-col items-center w-full max-w-5xl z-10'>
-        {/* DASHBOARD GRID */}
         <div className='w-full grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6'>
           <EtatService
             profil={profil}
@@ -461,7 +510,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* MODALES */}
       <ModaleInfo
         isOpen={modaleInfoOuverte}
         onClose={() => setModaleInfoOuverte(false)}
@@ -477,7 +525,7 @@ export default function HomePage() {
         setNouvelAvatar={setNouvelAvatar}
         peutChangerPseudo={peutChangerPseudo}
         sauvegarderModifications={sauvegarderModifications}
-        avatarsDispos={AVATARS_DISPOS}
+        avatarsDispos={avatarsDispos} // 👈 KAN-16 : On passe nos images BDD ici
       />
 
       <ModalConfirmation
@@ -487,7 +535,6 @@ export default function HomePage() {
         message="Vous êtes sur le point de vous déconnecter de Shasozam. Vos progrès sont sauvegardés dans les archives infernales. Voulez-vous vraiment quitter l'Arène ?"
       />
 
-      {/* VERSION (KAN-28) */}
       <div className='fixed bottom-2 right-4 text-neutral-500 text-[10px] font-bold uppercase tracking-widest z-50 pointer-events-none'>
         v{APP_VERSION}
       </div>
