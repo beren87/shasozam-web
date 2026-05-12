@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { auth, db } from '../../firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
@@ -10,7 +10,7 @@ import { APP_VERSION } from '../../../version';
 import BoutonNav from '../../components/BoutonNav';
 import ModaleInfo from '../../components/ModaleInfo';
 import ModaleProfil from '../../components/ModaleProfil';
-import CarteProfil from '../../components/CarteProfil';
+import ModalConfirmation from '../../components/ModalConfirmation';
 import EtatService from '../../components/EtatService';
 
 const MOTS_INTERDITS = [
@@ -25,14 +25,11 @@ const MOTS_INTERDITS = [
 ];
 const AVATARS_DISPOS = ['🩸', '🔥', '😈', '🌀', '👺'];
 const DELAI_24H_MS = 24 * 60 * 60 * 1000;
-
-// La liste des Admins
 const ADMIN_UIDS = ['IfCNStfQ1WN4KZvLIsYRjEX5l9g2'];
 
 export default function HomePage() {
   const router = useRouter();
   const [joueur, setJoueur] = useState(null);
-
   const [profil, setProfil] = useState({
     pseudo: '',
     avatar: '😈',
@@ -42,16 +39,44 @@ export default function HomePage() {
     defaites: 0,
     points: 0,
     gloires: 0,
+    dateCreation: null,
   });
-  const [chargement, setChargement] = useState(true);
 
+  const [chargement, setChargement] = useState(true);
+  const [isMenuOuvert, setIsMenuOuvert] = useState(false);
   const [modaleOuverte, setModaleOuverte] = useState(false);
   const [modaleInfoOuverte, setModaleInfoOuverte] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const [nouveauPseudo, setNouveauPseudo] = useState('');
   const [nouvelAvatar, setNouvelAvatar] = useState('');
   const [erreurModale, setErreurModale] = useState('');
   const [heureOuverture, setHeureOuverture] = useState(0);
+
+  const [secondesSession, setSecondesSession] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSecondesSession((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formaterTempsSession = (totalSeconds) => {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${h > 0 ? h + 'h ' : ''}${m > 0 ? m + 'm ' : ''}${s}s`;
+  };
+
+  const formaterDate = (date) => {
+    if (!date) return 'Inconnue';
+    return new Date(date).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  };
 
   const GLOIRES_PREVIEW = [
     {
@@ -94,6 +119,7 @@ export default function HomePage() {
         defaites: 0,
         points: 0,
         gloires: 0,
+        dateCreation: new Date().toISOString(),
       };
       await setDoc(docRef, nouveauProfil);
       setProfil(nouveauProfil);
@@ -118,6 +144,7 @@ export default function HomePage() {
     setNouvelAvatar(profil.avatar || '😈');
     setErreurModale('');
     setModaleOuverte(true);
+    setIsMenuOuvert(false);
   };
 
   const peutChangerPseudo = profil.dernierChangementPseudo
@@ -175,7 +202,6 @@ export default function HomePage() {
   const totalDuels = (profil.victoires || 0) + (profil.defaites || 0);
   let ratio = 0;
   let couleurRatio = 'text-white';
-
   if (totalDuels > 0) {
     ratio = Math.round(((profil.victoires || 0) / totalDuels) * 100);
     if (ratio > 50) couleurRatio = 'text-green-400';
@@ -184,111 +210,162 @@ export default function HomePage() {
 
   if (chargement)
     return (
-      <div className='min-h-screen bg-neutral-900 flex items-center justify-center text-red-500 font-bold'>
-        Chargement de l&apos;arène...
+      <div className='min-h-screen bg-neutral-900 flex items-center justify-center text-red-500 font-bold uppercase tracking-widest'>
+        Récupération de votre âme...
       </div>
     );
 
   return (
-    <main className='min-h-screen bg-neutral-900 text-gray-100 flex justify-center p-4 md:p-8 overflow-hidden relative'>
-      <aside className='hidden xl:flex flex-col w-[160px] 2xl:w-[200px] mr-6 my-auto h-[600px] border-2 border-dashed border-neutral-700/50 bg-neutral-800/30 rounded-2xl items-center justify-center text-neutral-600 z-10'>
-        <span className='text-3xl mb-3'>📢</span>
-        <span className='text-[10px] font-black uppercase tracking-widest text-center px-4 leading-relaxed'>
-          Espace
-          <br />
-          Annonceur
-          <br />
-          <br />
-          <span className='text-neutral-500 font-normal'>160x600</span>
-        </span>
-      </aside>
+    <main className='min-h-screen bg-neutral-900 text-gray-100 flex flex-col items-center p-4 md:p-8 overflow-hidden relative'>
+      {/* HUB BAR ÉPURÉE (KAN-29) */}
+      <div className='w-full max-w-5xl z-[100] relative mb-6 mt-2'>
+        <div className='w-full flex flex-wrap justify-end items-center gap-3 md:gap-4'>
+          {/* Bouton Admin */}
+          {joueur && ADMIN_UIDS.includes(joueur.uid) && (
+            <button
+              onClick={() => router.push('/admin')}
+              className='w-10 h-10 bg-purple-900/30 hover:bg-purple-600 text-purple-100 rounded-full border border-purple-500 transition-all flex items-center justify-center cursor-pointer shadow-lg shrink-0'
+              title='Back-office Admin'>
+              ⚙️
+            </button>
+          )}
 
-      <div className='flex-1 flex flex-col items-center w-full max-w-6xl z-10'>
-        {/* BARRE SUPÉRIEURE */}
-        <div className='w-full flex justify-between items-center mb-8 bg-neutral-800 p-4 rounded-2xl border border-neutral-600 shadow-lg flex-wrap xl:flex-nowrap gap-4'>
-          <div className='flex items-center gap-4 md:gap-6'>
-            <h1 className='text-2xl md:text-3xl font-black text-red-500 tracking-tighter uppercase italic'>
-              Shasozam
-            </h1>
-            <div className='flex gap-2'>
-              <BoutonNav
-                icone='📜'
-                texte='Règles'
-                texteHover="Le règlement d'une partie"
-                lien='/rules'
-              />
-              <BoutonNav
-                icone='🃏'
-                texte='Cartes de Duel'
-                texteHover='Cartes de Duel'
-                lien='/duel-cards'
-              />
-              <BoutonNav
-                icone='🎯'
-                texte='Objectifs'
-                texteHover='Objectifs des Souverains Infernaux'
-                lien='/objectives'
-              />
-              <BoutonNav
-                icone='🩸'
-                texte='Pactes'
-                texteHover="Pacte des Seigneurs de l'Enfer"
-                lien='/pacts'
-              />
-            </div>
-          </div>
-
-          <div className='flex items-center gap-3 md:gap-4'>
-            {/* 👇 LE BOUTON ADMIN CORRIGÉ : Petit, discret et propre ! */}
-            {joueur && ADMIN_UIDS.includes(joueur.uid) && (
-              <div
-                className='relative group cursor-pointer'
-                onClick={() => router.push('/admin')}>
-                <button className='flex items-center justify-center w-10 h-10 bg-purple-900/30 hover:bg-purple-600 text-purple-100 rounded-full shadow-md transition-colors border border-purple-500 cursor-pointer'>
-                  <span className='text-xl'>⚙️</span>
-                </button>
-                <div className='absolute top-12 left-1/2 -translate-x-1/2 w-max bg-neutral-700 text-xs text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none text-center border border-neutral-500 z-20 shadow-xl'>
-                  Back-office (Admin)
-                </div>
-              </div>
-            )}
-
-            <div
-              className='relative group cursor-pointer'
-              onClick={() => router.push('/shop')}>
-              <div className='flex items-center gap-2 bg-neutral-900 border border-neutral-600 px-4 py-1.5 rounded-full shadow-md group-hover:border-red-500 transition-colors'>
-                <span className='text-sm font-black text-red-400'>
-                  {profil.sceaux || 0}
-                </span>
-                <span className='text-lg'>💠</span>
-              </div>
+          {/* GROUPE COMPTE : Points / Gloires / Monnaie */}
+          <div className='flex items-center gap-2'>
+            <div className='bg-neutral-800 px-4 py-1.5 rounded-xl border border-neutral-700 flex flex-col items-center justify-center shadow-md'>
+              <p className='text-[9px] uppercase font-bold text-gray-500'>
+                Points
+              </p>
+              <p className='text-base font-black text-white leading-none'>
+                {profil.points || 0}
+              </p>
             </div>
 
-            <div
-              className='relative group cursor-pointer'
-              onClick={() => router.push('/buy')}>
-              <button className='flex items-center gap-1.5 bg-yellow-500 hover:bg-yellow-400 text-neutral-900 px-3 py-1.5 rounded-full shadow-md transition-all transform hover:scale-105 border border-yellow-300 font-black text-xs uppercase tracking-widest cursor-pointer'>
-                <span className='text-lg leading-none'>+</span>
-                <span className='hidden sm:inline'>Acheter</span>
+            <div className='bg-neutral-800 px-4 py-1.5 rounded-xl border border-neutral-700 flex flex-col items-center justify-center shadow-md'>
+              <p className='text-[9px] uppercase font-bold text-gray-500'>
+                Gloires
+              </p>
+              <p className='text-base font-black text-yellow-500 leading-none'>
+                {profil.gloires || 0}
+              </p>
+            </div>
+
+            <div className='flex items-center gap-2 bg-neutral-800 border border-neutral-700 pl-4 pr-1.5 py-1.5 rounded-xl shadow-md shrink-0'>
+              <span className='text-sm font-black text-red-400'>
+                {profil.sceaux || 0}
+              </span>
+              <span className='text-lg'>💠</span>
+              <button
+                onClick={() => router.push('/buy')}
+                className='ml-1 bg-yellow-500 hover:bg-yellow-400 text-neutral-900 px-3 py-1.5 rounded-lg flex items-center justify-center font-black transition-transform hover:scale-105 cursor-pointer shadow-md text-[10px] uppercase tracking-widest'>
+                + Boutique
               </button>
             </div>
+          </div>
 
-            <button
-              onClick={seDeconnecter}
-              className='text-xs text-gray-400 hover:text-white uppercase font-bold tracking-widest cursor-pointer ml-2'>
-              Quitter
-            </button>
+          {/* Séparateur visuel */}
+          <div className='w-px h-8 bg-neutral-700 mx-1 hidden sm:block'></div>
+
+          {/* Profil Avatar & Menu */}
+          <div className='relative shrink-0'>
+            <div
+              className='flex flex-col items-center cursor-pointer group'
+              onClick={() => setIsMenuOuvert(!isMenuOuvert)}>
+              <div className='text-4xl bg-neutral-800 w-14 h-14 rounded-full flex items-center justify-center border-2 border-neutral-600 group-hover:border-red-500 transition-colors shadow-lg'>
+                {profil.avatar}
+              </div>
+              <span className='text-[10px] font-black uppercase tracking-tighter text-gray-300 mt-1 group-hover:text-white transition-colors'>
+                {profil.pseudo}
+              </span>
+            </div>
+
+            {/* MENU DÉROULANT */}
+            <AnimatePresence>
+              {isMenuOuvert && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  className='absolute right-0 mt-4 w-64 bg-neutral-800 border border-neutral-600 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.7)] p-5 z-[110] flex flex-col gap-4'>
+                  <div className='pb-2 border-b border-neutral-700'>
+                    <p className='text-[9px] uppercase font-bold text-gray-500 mb-1'>
+                      Compte
+                    </p>
+                    <p className='text-xs font-medium text-red-400 truncate'>
+                      {profil.email}
+                    </p>
+                  </div>
+
+                  <div className='flex flex-col gap-2'>
+                    <button
+                      onClick={ouvrirModale}
+                      className='w-full text-left bg-neutral-900 hover:bg-neutral-700 p-3 rounded-xl border border-neutral-700 transition-colors text-xs font-bold uppercase tracking-wider flex items-center gap-3 cursor-pointer'>
+                      <span>✏️</span> Modifier Profil
+                    </button>
+                  </div>
+
+                  <div className='flex flex-col gap-1 py-2'>
+                    <div className='flex justify-between items-center text-[10px]'>
+                      <span className='text-gray-500 font-bold uppercase'>
+                        Inscrit le
+                      </span>
+                      <span className='text-gray-300'>
+                        {formaterDate(profil.dateCreation)}
+                      </span>
+                    </div>
+                    <div className='flex justify-between items-center text-[10px]'>
+                      <span className='text-gray-500 font-bold uppercase'>
+                        Session
+                      </span>
+                      <span className='text-green-500 font-mono'>
+                        {formaterTempsSession(secondesSession)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setShowLogoutConfirm(true)}
+                    className='w-full bg-red-900/20 hover:bg-red-600 text-red-500 hover:text-white p-3 rounded-xl border border-red-900/50 transition-all text-xs font-black uppercase tracking-widest cursor-pointer'>
+                    Quitter
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
+      </div>
 
+      {/* BARRE DE NAVIGATION */}
+      <nav className='w-full max-w-4xl flex justify-center gap-3 mb-8 z-50'>
+        <BoutonNav
+          icone='📜'
+          texte='Règles'
+          texteHover="Le règlement d'une partie"
+          lien='/rules'
+        />
+        <BoutonNav
+          icone='🃏'
+          texte='Cartes'
+          texteHover='Le Grimoire'
+          lien='/duel-cards'
+        />
+        <BoutonNav
+          icone='🎯'
+          texte='Objectifs'
+          texteHover='Objectifs'
+          lien='/objectives'
+        />
+        <BoutonNav
+          icone='🩸'
+          texte='Pactes'
+          texteHover='Pacte des Seigneurs'
+          lien='/pacts'
+        />
+      </nav>
+
+      <div className='flex-1 flex flex-col items-center w-full max-w-5xl z-10'>
         {/* DASHBOARD GRID */}
-        <div className='w-full grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6'>
-          <CarteProfil
-            profil={profil}
-            joueur={joueur}
-            ouvrirModale={ouvrirModale}
-          />
-
+        <div className='w-full grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6'>
           <EtatService
             profil={profil}
             totalDuels={totalDuels}
@@ -297,11 +374,7 @@ export default function HomePage() {
             setModaleInfoOuverte={setModaleInfoOuverte}
           />
 
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className='flex flex-col gap-6'>
+          <div className='flex flex-col gap-6'>
             <div className='flex-1 bg-neutral-800 border border-neutral-600 p-6 rounded-2xl flex flex-col items-center justify-center shadow-xl group hover:bg-neutral-700 transition-colors'>
               <h3 className='text-lg font-black uppercase mb-2 text-white'>
                 Le Purgatoire
@@ -310,14 +383,12 @@ export default function HomePage() {
                 Affrontez l&apos;IA pour tester vos stratégies sans risque.
               </p>
               <button
-                onClick={() =>
-                  alert("Lancement du simulateur d'entraînement...")
-                }
-                className='w-full bg-neutral-900 hover:bg-neutral-600 text-white font-black py-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] uppercase tracking-widest border border-neutral-500 cursor-pointer shadow-md'>
+                onClick={() => alert('Simulateur...')}
+                className='w-full bg-neutral-900 hover:bg-neutral-600 text-white font-black py-4 rounded-xl transition-all uppercase tracking-widest border border-neutral-500 cursor-pointer shadow-md'>
                 S&apos;entraîner (IA)
               </button>
             </div>
-            <div className='flex-1 bg-red-950/40 border-2 border-red-500/70 p-6 rounded-2xl flex flex-col items-center justify-center shadow-[0_0_20px_rgba(153,27,27,0.3)] group hover:border-red-400 hover:shadow-[0_0_40px_rgba(220,38,38,0.4)] transition-all'>
+            <div className='flex-1 bg-red-950/40 border-2 border-red-500/70 p-6 rounded-2xl flex flex-col items-center justify-center shadow-[0_0_20px_rgba(153,27,27,0.3)] group hover:border-red-400 transition-all'>
               <h3 className='text-lg font-black uppercase mb-2 text-red-300'>
                 L&apos;Arène Infernale
               </h3>
@@ -325,53 +396,39 @@ export default function HomePage() {
                 Affrontez d&apos;autres âmes damnées pour la gloire.
               </p>
               <button
-                onClick={() => alert("Recherche d'un adversaire...")}
-                className='w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl shadow-[0_4px_15px_rgba(220,38,38,0.5)] transition-all transform hover:scale-[1.02] active:scale-[0.98] uppercase tracking-widest cursor-pointer'>
+                onClick={() => alert('Duel...')}
+                className='w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl shadow-[0_4px_15px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest cursor-pointer'>
                 Chercher un duel
               </button>
             </div>
-          </motion.div>
+          </div>
         </div>
 
         {/* CLASSEMENT & GLOIRES */}
         <div className='w-full grid grid-cols-1 lg:grid-cols-2 gap-6 z-10 mb-12'>
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className='bg-neutral-800 border border-neutral-600 p-6 rounded-2xl shadow-xl flex flex-col justify-between'>
-            <div>
-              <div className='flex items-center gap-3 mb-4'>
-                <span className='text-3xl'>🏆</span>
-                <h3 className='text-xl font-black uppercase text-white tracking-widest'>
-                  Classement Général
-                </h3>
-              </div>
-              <p className='text-sm text-gray-300 mb-6'>
-                Consultez le panthéon des Souverains. Filtrez par pseudo, rang
-                ou points pour trouver vos rivaux et affirmer votre domination
-                sur l&apos;Arène.
-              </p>
+          <div className='bg-neutral-800 border border-neutral-600 p-6 rounded-2xl shadow-xl flex flex-col justify-between'>
+            <div className='flex items-center gap-3 mb-4'>
+              <span className='text-3xl'>🏆</span>
+              <h3 className='text-xl font-black uppercase text-white tracking-widest'>
+                Classement
+              </h3>
             </div>
+            <p className='text-sm text-gray-300 mb-6'>
+              Consultez le panthéon des Souverains et affirmez votre domination
+              sur l&apos;Arène.
+            </p>
             <button
               onClick={() => router.push('/rank')}
-              className='w-full bg-neutral-900 border border-neutral-600 hover:border-yellow-500 hover:bg-neutral-700 text-white py-4 rounded-xl font-black uppercase text-xs transition-colors cursor-pointer shadow-md flex items-center justify-center gap-2 group'>
-              <span>Voir le classement complet</span>
-              <span className='group-hover:translate-x-1 transition-transform'>
-                →
-              </span>
+              className='w-full bg-neutral-900 border border-neutral-600 hover:border-yellow-500 text-white py-4 rounded-xl font-black uppercase text-xs transition-colors cursor-pointer'>
+              Voir le classement complet →
             </button>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className='bg-neutral-800 border border-neutral-600 p-6 rounded-2xl shadow-xl flex flex-col h-full'>
+          <div className='bg-neutral-800 border border-neutral-600 p-6 rounded-2xl shadow-xl flex flex-col'>
             <div className='flex items-center gap-3 mb-6'>
               <span className='text-3xl'>✨</span>
               <h3 className='text-xl font-black uppercase text-white tracking-widest'>
-                Registre des Gloires
+                Gloires
               </h3>
             </div>
             <div className='flex-1 flex flex-col gap-3 mb-6'>
@@ -381,62 +438,35 @@ export default function HomePage() {
                   className={`flex justify-between items-center p-3 rounded-lg border ${
                     gloire.accompli
                       ? 'bg-neutral-900/50 border-green-900/50'
-                      : 'bg-neutral-900/30 border-neutral-700/50 opacity-60 hover:opacity-100 transition-opacity'
+                      : 'bg-neutral-900/30 border-neutral-700/50 opacity-60'
                   }`}>
                   <div className='flex items-center gap-3'>
                     <div
                       className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
                         gloire.accompli
                           ? 'bg-green-600 text-white'
-                          : 'bg-neutral-800 border border-neutral-600 text-transparent'
+                          : 'bg-neutral-800 text-transparent border border-neutral-600'
                       }`}>
                       {gloire.accompli && '✓'}
                     </div>
-                    <div>
-                      <h4
-                        className={`text-sm font-bold ${
-                          gloire.accompli ? 'text-white' : 'text-gray-400'
-                        }`}>
-                        {gloire.nom}
-                      </h4>
-                      <p className='text-[10px] text-gray-500'>{gloire.desc}</p>
-                    </div>
+                    <div className='text-sm font-bold'>{gloire.nom}</div>
                   </div>
-                  <div className='text-xs font-bold text-yellow-500 bg-neutral-950 px-2 py-1 rounded border border-neutral-800'>
+                  <div className='text-[10px] font-bold text-yellow-500'>
                     {gloire.recompense}
                   </div>
                 </div>
               ))}
             </div>
-            <button
-              onClick={() => router.push('/objectives')}
-              className='w-full text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-1 cursor-pointer'>
-              Afficher toutes les gloires <span>⬇</span>
-            </button>
-          </motion.div>
+          </div>
         </div>
       </div>
 
-      <aside className='hidden xl:flex flex-col w-[160px] 2xl:w-[200px] ml-6 my-auto h-[600px] border-2 border-dashed border-neutral-700/50 bg-neutral-800/30 rounded-2xl items-center justify-center text-neutral-600 z-10'>
-        <span className='text-3xl mb-3'>📢</span>
-        <span className='text-[10px] font-black uppercase tracking-widest text-center px-4 leading-relaxed'>
-          Espace
-          <br />
-          Annonceur
-          <br />
-          <br />
-          <span className='text-neutral-500 font-normal'>160x600</span>
-        </span>
-      </aside>
-
-      <div className='mt-20 opacity-5 text-[120px] font-black absolute -bottom-12 pointer-events-none select-none tracking-tighter text-white z-0'>
-        SHASOZAM
-      </div>
-
+      {/* MODALES */}
       <ModaleInfo
         isOpen={modaleInfoOuverte}
         onClose={() => setModaleInfoOuverte(false)}
       />
+
       <ModaleProfil
         isOpen={modaleOuverte}
         onClose={() => setModaleOuverte(false)}
@@ -449,9 +479,21 @@ export default function HomePage() {
         sauvegarderModifications={sauvegarderModifications}
         avatarsDispos={AVATARS_DISPOS}
       />
-      {/* AFFICHAGE DE LA VERSION (KAN-28) */}
+
+      <ModalConfirmation
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={seDeconnecter}
+        message="Vous êtes sur le point de vous déconnecter de Shasozam. Vos progrès sont sauvegardés dans les archives infernales. Voulez-vous vraiment quitter l'Arène ?"
+      />
+
+      {/* VERSION (KAN-28) */}
       <div className='fixed bottom-2 right-4 text-neutral-500 text-[10px] font-bold uppercase tracking-widest z-50 pointer-events-none'>
         v{APP_VERSION}
+      </div>
+
+      <div className='mt-20 opacity-5 text-[120px] font-black absolute -bottom-12 pointer-events-none select-none tracking-tighter text-white z-0'>
+        SHASOZAM
       </div>
     </main>
   );
