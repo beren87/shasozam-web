@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { auth, db } from '../../firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { APP_VERSION } from '../../../version';
 
 import BoutonNav from '../../components/BoutonNav';
 import ModaleInfo from '../../components/ModaleInfo';
@@ -448,6 +449,10 @@ export default function HomePage() {
         sauvegarderModifications={sauvegarderModifications}
         avatarsDispos={AVATARS_DISPOS}
       />
+      {/* AFFICHAGE DE LA VERSION (KAN-28) */}
+      <div className='fixed bottom-2 right-4 text-neutral-500 text-[10px] font-bold uppercase tracking-widest z-50 pointer-events-none'>
+        v{APP_VERSION}
+      </div>
     </main>
   );
 }
