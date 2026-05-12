@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { auth, db } from '../../firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
-// 👇 Ajout de query et where pour filtrer les avatars par défaut
 import {
   doc,
   getDoc,
@@ -41,6 +40,7 @@ export default function HomePage() {
   const [joueur, setJoueur] = useState(null);
   const [profil, setProfil] = useState({
     pseudo: '',
+    tagId: '', // 👈 KAN-36 : Ajout de l'ID unique
     avatar: '',
     dernierChangementPseudo: 0,
     sceaux: 0,
@@ -63,8 +63,6 @@ export default function HomePage() {
   const [heureOuverture, setHeureOuverture] = useState(0);
 
   const [secondesSession, setSecondesSession] = useState(0);
-
-  // 👇 KAN-16 : Nouvel état pour stocker les avatars provenant de la BDD
   const [avatarsDispos, setAvatarsDispos] = useState([]);
 
   useEffect(() => {
@@ -114,7 +112,6 @@ export default function HomePage() {
     },
   ];
 
-  // 👇 KAN-16 : Fonction pour charger les avatars par défaut
   const chargerAvatarsDefaut = async () => {
     try {
       const q = query(
@@ -131,18 +128,34 @@ export default function HomePage() {
     }
   };
 
+  // 👈 KAN-36 : Fonction de génération d'ID
+  const genererTagId = () => {
+    return '#' + Math.floor(1000000 + Math.random() * 9000000);
+  };
+
   const chargerOuCreerProfil = async (user, listeAvatars) => {
     const docRef = doc(db, 'joueurs', user.uid);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-      setProfil(docSnap.data());
+      const data = docSnap.data();
+      // 👈 KAN-36 : Rétrocompatibilité, si l'user n'a pas encore de Tag ID on lui en crée un
+      if (!data.tagId) {
+        const newTag = genererTagId();
+        await updateDoc(docRef, { tagId: newTag });
+        data.tagId = newTag;
+      }
+      setProfil(data);
     } else {
-      // Si c'est un nouveau joueur, on lui donne le premier avatar de la BDD s'il existe
       const avatarParDefaut = listeAvatars.length > 0 ? listeAvatars[0] : '😈';
 
+      // 👈 KAN-36 : Nouveau nom de 12 caractères max
+      let pseudoInit = user.displayName || 'Âme Damnée';
+      if (pseudoInit.length > 12) pseudoInit = pseudoInit.substring(0, 12);
+
       const nouveauProfil = {
-        pseudo: user.displayName || 'Nouveau Souverain',
+        pseudo: pseudoInit,
+        tagId: genererTagId(), // 👈 Attribution de l'ID à la création
         email: user.email,
         avatar: avatarParDefaut,
         dernierChangementPseudo: 0,
@@ -162,7 +175,6 @@ export default function HomePage() {
     return onAuthStateChanged(auth, async (user) => {
       if (user) {
         setJoueur(user);
-        // On charge d'abord les images, puis le profil
         const listeAvatars = await chargerAvatarsDefaut();
         await chargerOuCreerProfil(user, listeAvatars);
         setChargement(false);
@@ -244,7 +256,6 @@ export default function HomePage() {
     else if (ratio < 50) couleurRatio = 'text-red-400';
   }
 
-  // 👇 Petite fonction pour rendre l'avatar (Image ou Emoji fallback)
   const renderAvatar = (avatarValue, extraClasses = '') => {
     if (!avatarValue) return null;
     if (avatarValue.startsWith('http')) {
@@ -268,10 +279,8 @@ export default function HomePage() {
 
   return (
     <main className='min-h-screen bg-neutral-900 text-gray-100 flex flex-col items-center p-4 md:p-8 overflow-hidden relative'>
-      {/* HUB BAR ÉPURÉE */}
       <div className='w-full max-w-5xl z-[100] relative mb-6 mt-2'>
         <div className='w-full flex flex-wrap justify-end items-center gap-3 md:gap-4'>
-          {/* Bouton Admin */}
           {joueur && ADMIN_UIDS.includes(joueur.uid) && (
             <button
               onClick={() => router.push('/admin')}
@@ -281,7 +290,6 @@ export default function HomePage() {
             </button>
           )}
 
-          {/* GROUPE COMPTE : Points / Gloires / Monnaie */}
           <div className='flex items-center gap-2'>
             <div className='bg-neutral-800 px-4 py-1.5 rounded-xl border border-neutral-700 flex flex-col items-center justify-center shadow-md'>
               <p className='text-[9px] uppercase font-bold text-gray-500'>
@@ -316,17 +324,19 @@ export default function HomePage() {
 
           <div className='w-px h-8 bg-neutral-700 mx-1 hidden sm:block'></div>
 
-          {/* Profil Avatar & Menu */}
           <div className='relative shrink-0'>
             <div
               className='flex flex-col items-center cursor-pointer group'
               onClick={() => setIsMenuOuvert(!isMenuOuvert)}>
-              {/* 👇 Affichage de l'avatar géré avec image 👇 */}
               <div className='bg-neutral-800 w-14 h-14 rounded-full flex items-center justify-center border-2 border-neutral-600 group-hover:border-red-500 transition-colors shadow-lg overflow-hidden'>
                 {renderAvatar(profil.avatar, 'text-4xl')}
               </div>
               <span className='text-[10px] font-black uppercase tracking-tighter text-gray-300 mt-1 group-hover:text-white transition-colors'>
                 {profil.pseudo}
+              </span>
+              {/* 👈 KAN-36 : Affichage de l'ID sous le pseudo */}
+              <span className='text-[8px] italic text-gray-500 leading-none mt-0.5'>
+                {profil.tagId}
               </span>
             </div>
 
@@ -343,6 +353,10 @@ export default function HomePage() {
                     </p>
                     <p className='text-xs font-medium text-red-400 truncate'>
                       {profil.email}
+                    </p>
+                    {/* 👈 KAN-36 : Affichage de l'ID dans le menu */}
+                    <p className='text-[10px] italic text-gray-500 mt-1'>
+                      {profil.tagId}
                     </p>
                   </div>
 
@@ -385,7 +399,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* BARRE DE NAVIGATION */}
       <nav className='w-full max-w-4xl flex justify-center gap-3 mb-8 z-50'>
         <BoutonNav
           icone='📜'
@@ -453,7 +466,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* CLASSEMENT & GLOIRES */}
         <div className='w-full grid grid-cols-1 lg:grid-cols-2 gap-6 z-10 mb-12'>
           <div className='bg-neutral-800 border border-neutral-600 p-6 rounded-2xl shadow-xl flex flex-col justify-between'>
             <div className='flex items-center gap-3 mb-4'>
@@ -525,7 +537,7 @@ export default function HomePage() {
         setNouvelAvatar={setNouvelAvatar}
         peutChangerPseudo={peutChangerPseudo}
         sauvegarderModifications={sauvegarderModifications}
-        avatarsDispos={avatarsDispos} // 👈 KAN-16 : On passe nos images BDD ici
+        avatarsDispos={avatarsDispos}
       />
 
       <ModalConfirmation

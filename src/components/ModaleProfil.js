@@ -13,7 +13,6 @@ export default function ModaleProfil({
   sauvegarderModifications,
   avatarsDispos,
 }) {
-  // Petite fonction utilitaire pour rendre une image ou un emoji
   const renderAvatarOption = (avatarValue) => {
     if (!avatarValue) return null;
     if (avatarValue.startsWith('http')) {
@@ -48,12 +47,10 @@ export default function ModaleProfil({
             )}
 
             <div className='mb-6'>
-              {/* 👇 KAN-35 : Le texte modifié 👇 */}
               <label className='text-xs text-gray-300 uppercase font-bold mb-3 block'>
                 Choisir un Avatar
               </label>
 
-              {/* 👇 KAN-35 : Grille de 4 colonnes max avec scroll vertical 👇 */}
               <div className='grid grid-cols-4 gap-3 bg-neutral-900 p-3 rounded-xl border border-neutral-600 min-h-[70px] max-h-48 overflow-y-auto custom-scrollbar'>
                 {avatarsDispos.length > 0 ? (
                   avatarsDispos.map((avatarUrl, index) => (
@@ -93,6 +90,7 @@ export default function ModaleProfil({
                 value={nouveauPseudo}
                 onChange={(e) => setNouveauPseudo(e.target.value)}
                 disabled={!peutChangerPseudo}
+                maxLength={12} // 👈 KAN-36 : Limite matérielle de 12 caractères
                 className='w-full bg-neutral-900 border border-neutral-600 p-3 rounded-lg text-white focus:outline-none focus:border-red-500 disabled:opacity-50 disabled:cursor-not-allowed'
               />
               {!peutChangerPseudo && (
