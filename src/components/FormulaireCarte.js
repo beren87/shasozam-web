@@ -5,7 +5,6 @@ export default function FormulaireCarte({
   idEdition,
   gererChangement,
   gererCycles,
-  // 👇 KAN-23 : On récupère nos deux nouvelles fonctions
   gererCyclesAnge,
   gererCyclesDemon,
   gererImage,
@@ -154,7 +153,6 @@ export default function FormulaireCarte({
           ))}
         </div>
 
-        {/* 👇 KAN-23 : LA NOUVELLE ZONE DES CYCLES (STANDARD, ANGE, DEMON) 👇 */}
         <div className='bg-neutral-950 p-4 rounded-xl border border-neutral-800 space-y-4'>
           <label className='block text-[10px] uppercase font-bold text-gray-500'>
             Alignements & Cycles de Duel
@@ -250,7 +248,6 @@ export default function FormulaireCarte({
             </div>
           </div>
         </div>
-        {/* 👆 FIN DE LA NOUVELLE ZONE 👆 */}
 
         <div>
           <label className='block text-[10px] uppercase font-bold text-gray-500 mb-1'>
@@ -303,9 +300,15 @@ export default function FormulaireCarte({
             className='flex-1 bg-neutral-800 hover:bg-neutral-700 py-4 rounded-2xl font-bold uppercase text-xs transition-all cursor-pointer'>
             Annuler
           </button>
+
+          {/* 👇 KAN-32 : SEULEMENT CE BOUTON A ÉTÉ MODIFIÉ 👇 */}
           <button
             type='submit'
-            className='flex-2 bg-red-600 hover:bg-red-500 py-4 rounded-2xl font-black uppercase text-sm shadow-lg shadow-red-900/20 transition-all cursor-pointer'>
+            className={`flex-2 py-4 rounded-2xl font-black uppercase text-sm shadow-lg transition-all cursor-pointer ${
+              idEdition
+                ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20 text-white'
+                : 'bg-red-600 hover:bg-red-500 shadow-red-900/20 text-white'
+            }`}>
             {idEdition ? 'Mettre à jour' : 'Forger la carte'}
           </button>
         </div>

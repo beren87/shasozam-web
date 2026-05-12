@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
-// KAN-12 : On importe motion et AnimatePresence pour animer notre notification
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { auth, db, storage } from '../../firebase';
@@ -32,11 +31,10 @@ export default function AdminPage() {
   const [erreur, setErreur] = useState(null);
   const [toutesLesCartes, setToutesLesCartes] = useState([]);
 
-  // États pour les modales et notifications
   const [isDirty, setIsDirty] = useState(false);
   const [showModalQuitter, setShowModalQuitter] = useState(false);
-  const [carteASupprimer, setCarteASupprimer] = useState(null); // KAN-12 : Mémorise la carte à supprimer
-  const [notification, setNotification] = useState(null); // KAN-12 : Le message de succès en vert
+  const [carteASupprimer, setCarteASupprimer] = useState(null);
+  const [notification, setNotification] = useState(null);
 
   const {
     form,
@@ -44,8 +42,8 @@ export default function AdminPage() {
     imageFile,
     gererChangement,
     gererCycles,
-    gererCyclesAnge, // 👈 AJOUT KAN-23
-    gererCyclesDemon, // 👈 AJOUT KAN-23
+    gererCyclesAnge,
+    gererCyclesDemon,
     gererImage,
     resetForm,
     preparerEdition,
@@ -65,11 +63,11 @@ export default function AdminPage() {
   const gererCyclesAngeAvecDirty = (e) => {
     setIsDirty(true);
     gererCyclesAnge(e);
-  }; // 👈 AJOUT KAN-23
+  };
   const gererCyclesDemonAvecDirty = (e) => {
     setIsDirty(true);
     gererCyclesDemon(e);
-  }; // 👈 AJOUT KAN-23
+  };
   const gererImageAvecDirty = (e) => {
     setIsDirty(true);
     gererImage(e);
@@ -87,7 +85,6 @@ export default function AdminPage() {
     supprimerCoutSceau(index);
   };
 
-  // KAN-12 : Fonction pour afficher la phrase en vert pendant 3 secondes
   const afficherNotification = (message) => {
     setNotification(message);
     setTimeout(() => {
@@ -161,12 +158,10 @@ export default function AdminPage() {
 
       if (idEdition) {
         await updateDoc(doc(db, 'cartes', idEdition), dataASauvegarder);
-        // KAN-12 : Remplacement du "alert" par notre notification
         afficherNotification('La carte a été mise à jour avec succès !');
       } else {
         dataASauvegarder.dateCreation = maintenant;
         await addDoc(collection(db, 'cartes'), dataASauvegarder);
-        // KAN-12 : Remplacement du "alert" par notre notification
         afficherNotification('Nouvelle carte forgée avec succès !');
       }
 
@@ -179,12 +174,35 @@ export default function AdminPage() {
     }
   };
 
-  // KAN-12 : La suppression déclenche d'abord notre propre modale
+  // 👇 LA FAMEUSE FONCTION QUI TE MANQUAIT 👇
+  const publierCarteRapide = async (carteId) => {
+    try {
+      const maintenant = new Date().toISOString();
+      const auteurActuel =
+        auth.currentUser?.displayName || auth.currentUser?.email || 'Admin';
+
+      const carteRef = doc(db, 'cartes', carteId);
+      await updateDoc(carteRef, {
+        publiee: true,
+        dateModification: maintenant,
+        auteur: auteurActuel,
+      });
+
+      setIsDirty(false);
+      await chargerCartes();
+      afficherNotification(
+        'La carte est désormais accessible dans le Grimoire !'
+      );
+    } catch (error) {
+      console.error('Erreur publication rapide:', error);
+      alert('Erreur lors de la publication.');
+    }
+  };
+
   const preparerSuppression = (id) => {
     setCarteASupprimer(id);
   };
 
-  // KAN-12 : La fonction qui supprime réellement après confirmation
   const confirmerSuppression = async () => {
     if (carteASupprimer) {
       await deleteDoc(doc(db, 'cartes', carteASupprimer));
@@ -208,7 +226,6 @@ export default function AdminPage() {
 
   return (
     <main className='min-h-screen bg-neutral-950 text-white p-4 md:p-12 relative overflow-hidden'>
-      {/* KAN-12 : LA NOTIFICATION EN VERT EN HAUT DE L'ÉCRAN */}
       <AnimatePresence>
         {notification && (
           <motion.div
@@ -239,8 +256,8 @@ export default function AdminPage() {
             idEdition={idEdition}
             gererChangement={gererChangementAvecDirty}
             gererCycles={gererCyclesAvecDirty}
-            gererCyclesAnge={gererCyclesAngeAvecDirty} // 👈 AJOUT KAN-23
-            gererCyclesDemon={gererCyclesDemonAvecDirty} // 👈 AJOUT KAN-23
+            gererCyclesAnge={gererCyclesAngeAvecDirty}
+            gererCyclesDemon={gererCyclesDemonAvecDirty}
             gererImage={gererImageAvecDirty}
             sauvegarderCarte={sauvegarderCarte}
             resetForm={() => {
@@ -258,13 +275,13 @@ export default function AdminPage() {
               preparerEdition(carte);
               setIsDirty(false);
             }}
-            // KAN-12 : On envoie la carte vers notre modale au lieu de supprimer direct
+            // 👇 ET ICI ON LA PASSE BIEN AU COMPOSANT 👇
+            publierCarteRapide={publierCarteRapide}
             supprimerCarte={preparerSuppression}
           />
         </div>
       </div>
 
-      {/* Modale pour le bouton retour (existante) */}
       <ModalConfirmation
         isOpen={showModalQuitter}
         onClose={() => setShowModalQuitter(false)}
@@ -275,7 +292,6 @@ export default function AdminPage() {
         }}
       />
 
-      {/* KAN-12 : Nouvelle modale pour confirmer la suppression */}
       <ModalConfirmation
         isOpen={!!carteASupprimer}
         onClose={() => setCarteASupprimer(null)}
