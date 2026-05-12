@@ -48,27 +48,29 @@ export default function ModaleProfil({
             )}
 
             <div className='mb-6'>
-              <label className='text-xs text-gray-300 uppercase font-bold mb-2 block'>
-                Choisir un Avatar (3 max)
+              {/* 👇 KAN-35 : Le texte modifié 👇 */}
+              <label className='text-xs text-gray-300 uppercase font-bold mb-3 block'>
+                Choisir un Avatar
               </label>
 
-              <div className='flex justify-center gap-4 bg-neutral-900 p-3 rounded-xl border border-neutral-600 min-h-[70px]'>
+              {/* 👇 KAN-35 : Grille de 4 colonnes max avec scroll vertical 👇 */}
+              <div className='grid grid-cols-4 gap-3 bg-neutral-900 p-3 rounded-xl border border-neutral-600 min-h-[70px] max-h-48 overflow-y-auto custom-scrollbar'>
                 {avatarsDispos.length > 0 ? (
                   avatarsDispos.map((avatarUrl, index) => (
                     <button
                       key={index}
                       onClick={() => setNouvelAvatar(avatarUrl)}
-                      className={`relative w-14 h-14 rounded-xl flex items-center justify-center transition-all cursor-pointer overflow-hidden ${
+                      className={`relative w-14 h-14 mx-auto rounded-xl flex items-center justify-center transition-all cursor-pointer overflow-hidden ${
                         nouvelAvatar === avatarUrl
-                          ? 'bg-red-900/40 border-2 border-red-500 scale-110 shadow-[0_0_15px_rgba(239,68,68,0.4)]'
+                          ? 'bg-red-900/40 border-2 border-red-500 scale-110 shadow-[0_0_15px_rgba(239,68,68,0.4)] z-10'
                           : 'border border-neutral-700 hover:border-neutral-500 opacity-60 hover:opacity-100 bg-black'
                       }`}>
                       {renderAvatarOption(avatarUrl)}
                     </button>
                   ))
                 ) : (
-                  <p className='text-xs text-gray-500 italic flex items-center justify-center w-full'>
-                    Aucun avatar par défaut disponible.
+                  <p className='col-span-4 text-xs text-gray-500 italic flex items-center justify-center w-full text-center py-2'>
+                    Aucun avatar disponible.
                   </p>
                 )}
               </div>
