@@ -366,8 +366,9 @@ export default function HomePage() {
   return (
     <main className='min-h-screen bg-neutral-900 text-gray-100 flex flex-col items-center p-4 md:p-8 overflow-hidden relative'>
       <div className='w-full max-w-5xl z-[100] relative mb-6 mt-2'>
-        <div className='w-full relative flex justify-end'>
-          <div className='absolute bottom-1 left-0 right-[5.5rem] h-2.5 bg-neutral-800 rounded-full border border-neutral-700 overflow-hidden flex items-center shadow-inner'>
+        <div className='w-full relative flex justify-between items-start pb-4'>
+          {/* BARRE D'XP : Remontée très légèrement (-bottom-2) */}
+          <div className='absolute -bottom-2 left-0 right-[5.5rem] h-2.5 bg-neutral-800 rounded-full border border-neutral-700 overflow-hidden flex items-center shadow-inner z-0'>
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${pourcentageXP}%` }}
@@ -379,7 +380,91 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className='flex items-center gap-3 md:gap-4'>
+          {/* SECTION DES IMAGES PERSONNALISÉES */}
+          <div className='flex items-center gap-6 pl-2 z-10'>
+            {/* 1. Unknow */}
+            <div className='flex flex-col items-center cursor-pointer group'>
+              <img
+                src='/icons/unknow.png'
+                alt='Unknow'
+                className='w-14 h-14 object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] group-hover:scale-110 transition-transform duration-300'
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+              <div className='hidden w-14 h-14 rounded bg-neutral-800 border border-neutral-700 items-center justify-center group-hover:scale-110 transition-transform duration-300'>
+                <span className='text-xs text-neutral-500'>IMG</span>
+              </div>
+              <span className='text-[10px] font-black uppercase tracking-tighter text-gray-300 mt-2 group-hover:text-white transition-colors'>
+                Unknow
+              </span>
+            </div>
+
+            {/* 2. Gloires */}
+            <div
+              onClick={() => router.push('/objectives')}
+              className='flex flex-col items-center cursor-pointer group'>
+              <img
+                src='/icons/gloires.png'
+                alt='Gloires'
+                className='w-14 h-14 object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] group-hover:scale-110 transition-transform duration-300'
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+              <div className='hidden w-14 h-14 rounded bg-neutral-800 border border-neutral-700 items-center justify-center group-hover:scale-110 transition-transform duration-300'>
+                <span className='text-xs text-neutral-500'>IMG</span>
+              </div>
+              <span className='text-[10px] font-black uppercase tracking-tighter text-gray-300 mt-2 group-hover:text-white transition-colors'>
+                Gloires
+              </span>
+            </div>
+
+            {/* 3. Talents */}
+            <div className='flex flex-col items-center cursor-pointer group'>
+              <img
+                src='/icons/talents.png'
+                alt='Talents'
+                className='w-14 h-14 object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] group-hover:scale-110 transition-transform duration-300'
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+              <div className='hidden w-14 h-14 rounded bg-neutral-800 border border-neutral-700 items-center justify-center group-hover:scale-110 transition-transform duration-300'>
+                <span className='text-xs text-neutral-500'>IMG</span>
+              </div>
+              <span className='text-[10px] font-black uppercase tracking-tighter text-gray-300 mt-2 group-hover:text-white transition-colors'>
+                Talents
+              </span>
+            </div>
+
+            {/* 4. Collection */}
+            <div
+              onClick={() => router.push('/card-back')}
+              className='flex flex-col items-center cursor-pointer group'>
+              <img
+                src='/icons/collection.png'
+                alt='Collection'
+                className='w-14 h-14 object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] group-hover:scale-110 transition-transform duration-300'
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+              <div className='hidden w-14 h-14 rounded bg-neutral-800 border border-neutral-700 items-center justify-center group-hover:scale-110 transition-transform duration-300'>
+                <span className='text-xs text-neutral-500'>IMG</span>
+              </div>
+              <span className='text-[10px] font-black uppercase tracking-tighter text-gray-300 mt-2 group-hover:text-white transition-colors'>
+                Collection
+              </span>
+            </div>
+          </div>
+
+          {/* GROUPE BOUTONS & AVATAR (DROITE) */}
+          <div className='flex items-center gap-3 md:gap-4 z-10'>
             {joueur && ADMIN_UIDS.includes(joueur.uid) && (
               <button
                 onClick={() => router.push('/admin')}
@@ -408,7 +493,6 @@ export default function HomePage() {
                 </p>
               </div>
 
-              {/* 👇 KAN-44 : Accès Boutique via Sceaux + Bouton Acheter animé 👇 */}
               <div className='flex items-center gap-2 bg-neutral-800 border border-neutral-700 pl-3 pr-1.5 py-1.5 rounded-xl shadow-md shrink-0'>
                 <div
                   onClick={() => router.push('/shop')}
@@ -418,7 +502,6 @@ export default function HomePage() {
                   </span>
                   <span className='text-lg'>💠</span>
 
-                  {/* Infobulle Boutique */}
                   <div className='absolute -bottom-8 left-1/2 -translate-x-1/2 bg-neutral-900 text-yellow-500 text-[9px] font-bold px-2 py-1 rounded border border-yellow-700/50 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-lg uppercase tracking-wider'>
                     Boutique
                   </div>
@@ -551,7 +634,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 👇 KAN-44 : Ajout du bouton Collection dans la navigation 👇 */}
       <nav className='w-full max-w-4xl flex justify-center gap-3 mb-8 z-50 flex-wrap'>
         <BoutonNav
           icone='📜'
