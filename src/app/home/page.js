@@ -1,5 +1,4 @@
 'use client';
-// 👇 KAN-37 : Ajout de useRef pour détecter le clic en dehors
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -39,7 +38,6 @@ const ADMIN_UIDS = ['IfCNStfQ1WN4KZvLIsYRjEX5l9g2'];
 export default function HomePage() {
   const router = useRouter();
 
-  // 👇 KAN-37 : On crée une référence pour notre menu déroulant
   const menuRef = useRef(null);
 
   const [joueur, setJoueur] = useState(null);
@@ -70,7 +68,6 @@ export default function HomePage() {
   const [secondesSession, setSecondesSession] = useState(0);
   const [avatarsDispos, setAvatarsDispos] = useState([]);
 
-  // 👇 KAN-37 : Écouteur d'événement pour détecter le clic en dehors du menu
   useEffect(() => {
     function handleClickOutside(event) {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -84,7 +81,6 @@ export default function HomePage() {
       document.removeEventListener('mousedown', handleClickOutside);
     }
 
-    // Nettoyage de l'écouteur quand le composant est détruit
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
@@ -237,11 +233,34 @@ export default function HomePage() {
     const modifications = { avatar: nouvelAvatar };
     let aChangePseudo = false;
 
+    // 👇 KAN-38 : Vérification de l'unicité du pseudonyme 👇
     if (pseudoNettoye !== profil.pseudo) {
       if (!peutChangerPseudo)
         return setErreurModale(
           'Tu dois attendre 24h entre chaque changement de pseudo.'
         );
+
+      try {
+        // On interroge Firebase pour voir s'il y a déjà un joueur avec ce pseudo exact
+        const pseudoQuery = query(
+          collection(db, 'joueurs'),
+          where('pseudo', '==', pseudoNettoye)
+        );
+        const pseudoSnap = await getDocs(pseudoQuery);
+
+        if (!pseudoSnap.empty) {
+          return setErreurModale(
+            'Ce nom existe déjà, tu dois en trouver un autre.'
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Erreur lors de la vérification de l'unicité du pseudo :",
+          error
+        );
+        return setErreurModale('Erreur de vérification. Réessaie plus tard.');
+      }
+
       modifications.pseudo = pseudoNettoye;
       modifications.dernierChangementPseudo = Date.now();
       aChangePseudo = true;
@@ -346,7 +365,6 @@ export default function HomePage() {
 
           <div className='w-px h-8 bg-neutral-700 mx-1 hidden sm:block'></div>
 
-          {/* 👇 KAN-37 : Ajout de la ref="menuRef" sur ce conteneur parent 👇 */}
           <div className='relative shrink-0' ref={menuRef}>
             <div
               className='flex flex-col items-center cursor-pointer group'
