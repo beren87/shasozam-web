@@ -13,7 +13,7 @@ import {
   getDocs,
   query,
   where,
-  onSnapshot, // 👈 KAN-39 : Importation du temps réel !
+  onSnapshot,
 } from 'firebase/firestore';
 import { APP_VERSION } from '../../../version';
 
@@ -36,7 +36,6 @@ const MOTS_INTERDITS = [
 const DELAI_24H_MS = 24 * 60 * 60 * 1000;
 const ADMIN_UIDS = ['IfCNStfQ1WN4KZvLIsYRjEX5l9g2'];
 
-// Fonction utilitaire pour calculer l'XP requise pour le niveau SUIVANT
 const getXpRequirePourNiveau = (niveau) => {
   if (niveau <= 1) return 100;
   return Math.floor(100 * Math.pow(1.5, niveau - 1));
@@ -157,7 +156,6 @@ export default function HomePage() {
     return '#' + Math.floor(1000000 + Math.random() * 9000000);
   };
 
-  // KAN-39 : Séparation de l'initialisation (qui écrit) et de l'écoute (qui lit)
   const initialiserProfilSiBesoin = async (user, listeAvatars) => {
     const docRef = doc(db, 'joueurs', user.uid);
     const docSnap = await getDoc(docRef);
@@ -203,10 +201,8 @@ export default function HomePage() {
         setJoueur(user);
         const listeAvatars = await chargerAvatarsDefaut();
 
-        // 1. Initialise les champs manquants s'il y en a
         await initialiserProfilSiBesoin(user, listeAvatars);
 
-        // 2. Écoute la base de données en TEMPS RÉEL
         const docRef = doc(db, 'joueurs', user.uid);
         unsubscribeSnapshot = onSnapshot(
           docRef,
@@ -217,12 +213,10 @@ export default function HomePage() {
             }
           },
           (error) => {
-            // On capture silencieusement les erreurs d'écoute pour éviter le message rouge
             console.log('Écouteur débranché.');
           }
         );
       } else {
-        // 👇 LE CORRECTIF EST ICI : On débranche l'écouteur avant de partir
         if (unsubscribeSnapshot) {
           unsubscribeSnapshot();
         }
@@ -231,13 +225,11 @@ export default function HomePage() {
     });
 
     return () => {
-      // Nettoyage au démontage du composant
       if (unsubscribeSnapshot) unsubscribeSnapshot();
       unsubscribeAuth();
     };
   }, [router]);
 
-  // 👇 KAN-39 : Écouteur magique pour le Level Up Automatique ! 👇
   useEffect(() => {
     if (!joueur || profil.niveau === undefined || profil.xp === undefined)
       return;
@@ -245,18 +237,15 @@ export default function HomePage() {
     const verifierLevelUp = async () => {
       const xpReq = getXpRequirePourNiveau(profil.niveau);
 
-      // Si l'XP atteint ou dépasse le palier
       if (profil.xp >= xpReq) {
         const nouveauNiveau = profil.niveau + 1;
-        const xpRestante = profil.xp - xpReq; // On garde le surplus !
+        const xpRestante = profil.xp - xpReq;
 
         const docRef = doc(db, 'joueurs', joueur.uid);
         await updateDoc(docRef, {
           niveau: nouveauNiveau,
           xp: xpRestante,
         });
-
-        // Bonus: on pourrait déclencher une animation ici plus tard !
       }
     };
 
@@ -377,9 +366,7 @@ export default function HomePage() {
   return (
     <main className='min-h-screen bg-neutral-900 text-gray-100 flex flex-col items-center p-4 md:p-8 overflow-hidden relative'>
       <div className='w-full max-w-5xl z-[100] relative mb-6 mt-2'>
-        {/* 👇 KAN-39 : Nouveau Wrapper principal pour aligner précisément la barre et le profil 👇 */}
         <div className='w-full relative flex justify-end'>
-          {/* BARRE D'XP : Absolue, tout à gauche, alignée en bas (sur l'ID) */}
           <div className='absolute bottom-1 left-0 right-[5.5rem] h-2.5 bg-neutral-800 rounded-full border border-neutral-700 overflow-hidden flex items-center shadow-inner'>
             <motion.div
               initial={{ width: 0 }}
@@ -392,7 +379,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* GROUPE BOUTONS & AVATAR */}
           <div className='flex items-center gap-3 md:gap-4'>
             {joueur && ADMIN_UIDS.includes(joueur.uid) && (
               <button
@@ -445,7 +431,6 @@ export default function HomePage() {
                   <div className='bg-neutral-800 w-14 h-14 rounded-full flex items-center justify-center border-2 border-neutral-600 group-hover:border-red-500 transition-colors shadow-lg overflow-hidden'>
                     {renderAvatar(profil.avatar, 'text-4xl')}
                   </div>
-                  {/* Bulle de niveau */}
                   <div className='absolute -top-1 -left-2 bg-neutral-900 border-2 border-blue-500 text-blue-400 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black z-10 shadow-md'>
                     {niveauActuel}
                   </div>
@@ -518,6 +503,31 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* 👇 KAN-43 : Boutons de Jeu au centre, sous la barre d'XP, sans bloc ! 👇 */}
+      <div className='w-full max-w-2xl flex flex-col sm:flex-row justify-center gap-6 md:gap-12 mb-8 z-10 mt-2 px-4'>
+        <div className='flex-1 flex flex-col items-center gap-2'>
+          <button
+            onClick={() => alert('Simulateur...')}
+            className='w-full bg-neutral-900 hover:bg-neutral-700 text-white font-black py-4 rounded-xl transition-all uppercase tracking-widest border border-neutral-500 cursor-pointer shadow-lg'>
+            S&apos;entraîner (IA)
+          </button>
+          <p className='text-[10px] text-gray-400 italic text-center'>
+            Affrontez l&apos;IA pour tester vos stratégies sans risque.
+          </p>
+        </div>
+
+        <div className='flex-1 flex flex-col items-center gap-2'>
+          <button
+            onClick={() => alert('Duel...')}
+            className='w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl shadow-[0_4px_15px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest cursor-pointer hover:shadow-[0_4px_20px_rgba(220,38,38,0.8)]'>
+            Chercher un duel
+          </button>
+          <p className='text-[10px] text-red-400/80 italic text-center'>
+            Affrontez d&apos;autres âmes damnées pour la gloire.
+          </p>
+        </div>
+      </div>
+
       <nav className='w-full max-w-4xl flex justify-center gap-3 mb-8 z-50'>
         <BoutonNav
           icone='📜'
@@ -545,8 +555,10 @@ export default function HomePage() {
         />
       </nav>
 
+      {/* 👇 KAN-43 : Réorganisation des blocs restants 👇 */}
       <div className='flex-1 flex flex-col items-center w-full max-w-5xl z-10'>
-        <div className='w-full grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6'>
+        {/* L'État de Service prend une belle place centrale */}
+        <div className='w-full max-w-2xl mb-6'>
           <EtatService
             profil={profil}
             totalDuels={totalDuels}
@@ -554,35 +566,6 @@ export default function HomePage() {
             couleurRatio={couleurRatio}
             setModaleInfoOuverte={setModaleInfoOuverte}
           />
-
-          <div className='flex flex-col gap-6'>
-            <div className='flex-1 bg-neutral-800 border border-neutral-600 p-6 rounded-2xl flex flex-col items-center justify-center shadow-xl group hover:bg-neutral-700 transition-colors'>
-              <h3 className='text-lg font-black uppercase mb-2 text-white'>
-                Le Purgatoire
-              </h3>
-              <p className='text-xs text-gray-300 mb-6 text-center font-medium italic'>
-                Affrontez l&apos;IA pour tester vos stratégies sans risque.
-              </p>
-              <button
-                onClick={() => alert('Simulateur...')}
-                className='w-full bg-neutral-900 hover:bg-neutral-600 text-white font-black py-4 rounded-xl transition-all uppercase tracking-widest border border-neutral-500 cursor-pointer shadow-md'>
-                S&apos;entraîner (IA)
-              </button>
-            </div>
-            <div className='flex-1 bg-red-950/40 border-2 border-red-500/70 p-6 rounded-2xl flex flex-col items-center justify-center shadow-[0_0_20px_rgba(153,27,27,0.3)] group hover:border-red-400 transition-all'>
-              <h3 className='text-lg font-black uppercase mb-2 text-red-300'>
-                L&apos;Arène Infernale
-              </h3>
-              <p className='text-xs text-red-200 mb-6 text-center font-medium italic'>
-                Affrontez d&apos;autres âmes damnées pour la gloire.
-              </p>
-              <button
-                onClick={() => alert('Duel...')}
-                className='w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl shadow-[0_4px_15px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest cursor-pointer'>
-                Chercher un duel
-              </button>
-            </div>
-          </div>
         </div>
 
         <div className='w-full grid grid-cols-1 lg:grid-cols-2 gap-6 z-10 mb-12'>
