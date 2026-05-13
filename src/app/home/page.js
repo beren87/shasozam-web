@@ -408,16 +408,40 @@ export default function HomePage() {
                 </p>
               </div>
 
-              <div className='flex items-center gap-2 bg-neutral-800 border border-neutral-700 pl-4 pr-1.5 py-1.5 rounded-xl shadow-md shrink-0'>
-                <span className='text-sm font-black text-red-400'>
-                  {profil.sceaux || 0}
-                </span>
-                <span className='text-lg'>💠</span>
-                <button
+              {/* 👇 KAN-44 : Accès Boutique via Sceaux + Bouton Acheter animé 👇 */}
+              <div className='flex items-center gap-2 bg-neutral-800 border border-neutral-700 pl-3 pr-1.5 py-1.5 rounded-xl shadow-md shrink-0'>
+                <div
+                  onClick={() => router.push('/shop')}
+                  className='flex items-center gap-1 cursor-pointer group relative px-1'>
+                  <span className='text-sm font-black text-red-400'>
+                    {profil.sceaux || 0}
+                  </span>
+                  <span className='text-lg'>💠</span>
+
+                  {/* Infobulle Boutique */}
+                  <div className='absolute -bottom-8 left-1/2 -translate-x-1/2 bg-neutral-900 text-yellow-500 text-[9px] font-bold px-2 py-1 rounded border border-yellow-700/50 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-lg uppercase tracking-wider'>
+                    Boutique
+                  </div>
+                </div>
+
+                <motion.button
                   onClick={() => router.push('/buy')}
-                  className='ml-1 bg-yellow-500 hover:bg-yellow-400 text-neutral-900 px-3 py-1.5 rounded-lg flex items-center justify-center font-black transition-transform hover:scale-105 cursor-pointer shadow-md text-[10px] uppercase tracking-widest'>
-                  + Boutique
-                </button>
+                  animate={{
+                    boxShadow: [
+                      '0px 0px 0px rgba(234,179,8,0)',
+                      '0px 0px 15px rgba(234,179,8,0.7)',
+                      '0px 0px 0px rgba(234,179,8,0)',
+                    ],
+                    opacity: [1, 0.8, 1],
+                  }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                  }}
+                  className='ml-1 bg-yellow-500 text-neutral-900 px-3 py-1.5 rounded-lg flex items-center justify-center font-black cursor-pointer text-[10px] uppercase tracking-widest'>
+                  Acheter
+                </motion.button>
               </div>
             </div>
 
@@ -503,7 +527,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 👇 KAN-43 : Boutons de Jeu au centre, sous la barre d'XP, sans bloc ! 👇 */}
       <div className='w-full max-w-2xl flex flex-col sm:flex-row justify-center gap-6 md:gap-12 mb-8 z-10 mt-2 px-4'>
         <div className='flex-1 flex flex-col items-center gap-2'>
           <button
@@ -528,7 +551,8 @@ export default function HomePage() {
         </div>
       </div>
 
-      <nav className='w-full max-w-4xl flex justify-center gap-3 mb-8 z-50'>
+      {/* 👇 KAN-44 : Ajout du bouton Collection dans la navigation 👇 */}
+      <nav className='w-full max-w-4xl flex justify-center gap-3 mb-8 z-50 flex-wrap'>
         <BoutonNav
           icone='📜'
           texte='Règles'
@@ -540,6 +564,12 @@ export default function HomePage() {
           texte='Cartes'
           texteHover='Le Grimoire'
           lien='/duel-cards'
+        />
+        <BoutonNav
+          icone='🎴'
+          texte='Collection'
+          texteHover='Dos de cartes et cosmétiques'
+          lien='/card-back'
         />
         <BoutonNav
           icone='🎯'
@@ -555,9 +585,7 @@ export default function HomePage() {
         />
       </nav>
 
-      {/* 👇 KAN-43 : Réorganisation des blocs restants 👇 */}
       <div className='flex-1 flex flex-col items-center w-full max-w-5xl z-10'>
-        {/* L'État de Service prend une belle place centrale */}
         <div className='w-full max-w-2xl mb-6'>
           <EtatService
             profil={profil}
