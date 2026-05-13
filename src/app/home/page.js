@@ -13,6 +13,7 @@ import {
   getDocs,
   query,
   where,
+  onSnapshot, // 👈 KAN-39 : Importation du temps réel !
 } from 'firebase/firestore';
 import { APP_VERSION } from '../../../version';
 
@@ -35,9 +36,14 @@ const MOTS_INTERDITS = [
 const DELAI_24H_MS = 24 * 60 * 60 * 1000;
 const ADMIN_UIDS = ['IfCNStfQ1WN4KZvLIsYRjEX5l9g2'];
 
+// Fonction utilitaire pour calculer l'XP requise pour le niveau SUIVANT
+const getXpRequirePourNiveau = (niveau) => {
+  if (niveau <= 1) return 100;
+  return Math.floor(100 * Math.pow(1.5, niveau - 1));
+};
+
 export default function HomePage() {
   const router = useRouter();
-
   const menuRef = useRef(null);
 
   const [joueur, setJoueur] = useState(null);
@@ -52,6 +58,8 @@ export default function HomePage() {
     points: 0,
     gloires: 0,
     dateCreation: null,
+    niveau: 1,
+    xp: 0,
   });
 
   const [chargement, setChargement] = useState(true);
@@ -74,16 +82,12 @@ export default function HomePage() {
         setIsMenuOuvert(false);
       }
     }
-
     if (isMenuOuvert) {
       document.addEventListener('mousedown', handleClickOutside);
     } else {
       document.removeEventListener('mousedown', handleClickOutside);
     }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMenuOuvert]);
 
   useEffect(() => {
@@ -153,21 +157,22 @@ export default function HomePage() {
     return '#' + Math.floor(1000000 + Math.random() * 9000000);
   };
 
-  const chargerOuCreerProfil = async (user, listeAvatars) => {
+  // KAN-39 : Séparation de l'initialisation (qui écrit) et de l'écoute (qui lit)
+  const initialiserProfilSiBesoin = async (user, listeAvatars) => {
     const docRef = doc(db, 'joueurs', user.uid);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
       const data = docSnap.data();
-      if (!data.tagId) {
-        const newTag = genererTagId();
-        await updateDoc(docRef, { tagId: newTag });
-        data.tagId = newTag;
+      let updates = {};
+      if (!data.tagId) updates.tagId = genererTagId();
+      if (data.niveau === undefined) updates.niveau = 1;
+      if (data.xp === undefined) updates.xp = 0;
+      if (Object.keys(updates).length > 0) {
+        await updateDoc(docRef, updates);
       }
-      setProfil(data);
     } else {
       const avatarParDefaut = listeAvatars.length > 0 ? listeAvatars[0] : '😈';
-
       let pseudoInit = user.displayName || 'Âme Damnée';
       if (pseudoInit.length > 12) pseudoInit = pseudoInit.substring(0, 12);
 
@@ -182,25 +187,81 @@ export default function HomePage() {
         defaites: 0,
         points: 0,
         gloires: 0,
+        niveau: 1,
+        xp: 0,
         dateCreation: new Date().toISOString(),
       };
       await setDoc(docRef, nouveauProfil);
-      setProfil(nouveauProfil);
     }
   };
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (user) => {
+    let unsubscribeSnapshot;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setJoueur(user);
         const listeAvatars = await chargerAvatarsDefaut();
-        await chargerOuCreerProfil(user, listeAvatars);
-        setChargement(false);
+
+        // 1. Initialise les champs manquants s'il y en a
+        await initialiserProfilSiBesoin(user, listeAvatars);
+
+        // 2. Écoute la base de données en TEMPS RÉEL
+        const docRef = doc(db, 'joueurs', user.uid);
+        unsubscribeSnapshot = onSnapshot(
+          docRef,
+          (docSnap) => {
+            if (docSnap.exists()) {
+              setProfil(docSnap.data());
+              setChargement(false);
+            }
+          },
+          (error) => {
+            // On capture silencieusement les erreurs d'écoute pour éviter le message rouge
+            console.log('Écouteur débranché.');
+          }
+        );
       } else {
+        // 👇 LE CORRECTIF EST ICI : On débranche l'écouteur avant de partir
+        if (unsubscribeSnapshot) {
+          unsubscribeSnapshot();
+        }
         router.push('/');
       }
     });
+
+    return () => {
+      // Nettoyage au démontage du composant
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
+      unsubscribeAuth();
+    };
   }, [router]);
+
+  // 👇 KAN-39 : Écouteur magique pour le Level Up Automatique ! 👇
+  useEffect(() => {
+    if (!joueur || profil.niveau === undefined || profil.xp === undefined)
+      return;
+
+    const verifierLevelUp = async () => {
+      const xpReq = getXpRequirePourNiveau(profil.niveau);
+
+      // Si l'XP atteint ou dépasse le palier
+      if (profil.xp >= xpReq) {
+        const nouveauNiveau = profil.niveau + 1;
+        const xpRestante = profil.xp - xpReq; // On garde le surplus !
+
+        const docRef = doc(db, 'joueurs', joueur.uid);
+        await updateDoc(docRef, {
+          niveau: nouveauNiveau,
+          xp: xpRestante,
+        });
+
+        // Bonus: on pourrait déclencher une animation ici plus tard !
+      }
+    };
+
+    verifierLevelUp();
+  }, [profil.xp, profil.niveau, joueur]);
 
   const ouvrirModale = () => {
     setHeureOuverture(Date.now());
@@ -233,7 +294,6 @@ export default function HomePage() {
     const modifications = { avatar: nouvelAvatar };
     let aChangePseudo = false;
 
-    // 👇 KAN-38 : Vérification de l'unicité du pseudonyme 👇
     if (pseudoNettoye !== profil.pseudo) {
       if (!peutChangerPseudo)
         return setErreurModale(
@@ -241,7 +301,6 @@ export default function HomePage() {
         );
 
       try {
-        // On interroge Firebase pour voir s'il y a déjà un joueur avec ce pseudo exact
         const pseudoQuery = query(
           collection(db, 'joueurs'),
           where('pseudo', '==', pseudoNettoye)
@@ -254,10 +313,7 @@ export default function HomePage() {
           );
         }
       } catch (error) {
-        console.error(
-          "Erreur lors de la vérification de l'unicité du pseudo :",
-          error
-        );
+        console.error('Erreur unicité pseudo :', error);
         return setErreurModale('Erreur de vérification. Réessaie plus tard.');
       }
 
@@ -269,14 +325,6 @@ export default function HomePage() {
     try {
       const docRef = doc(db, 'joueurs', joueur.uid);
       await updateDoc(docRef, modifications);
-      setProfil((prev) => ({
-        ...prev,
-        avatar: nouvelAvatar,
-        ...(aChangePseudo && {
-          pseudo: pseudoNettoye,
-          dernierChangementPseudo: modifications.dernierChangementPseudo,
-        }),
-      }));
       setModaleOuverte(false);
     } catch (error) {
       setErreurModale('Erreur lors de la sauvegarde.');
@@ -318,122 +366,154 @@ export default function HomePage() {
       </div>
     );
 
+  const niveauActuel = profil.niveau || 1;
+  const xpActuelle = profil.xp || 0;
+  const xpRequise = getXpRequirePourNiveau(niveauActuel);
+  const pourcentageXP = Math.min(
+    100,
+    Math.round((xpActuelle / xpRequise) * 100)
+  );
+
   return (
     <main className='min-h-screen bg-neutral-900 text-gray-100 flex flex-col items-center p-4 md:p-8 overflow-hidden relative'>
       <div className='w-full max-w-5xl z-[100] relative mb-6 mt-2'>
-        <div className='w-full flex flex-wrap justify-end items-center gap-3 md:gap-4'>
-          {joueur && ADMIN_UIDS.includes(joueur.uid) && (
-            <button
-              onClick={() => router.push('/admin')}
-              className='w-10 h-10 bg-purple-900/30 hover:bg-purple-600 text-purple-100 rounded-full border border-purple-500 transition-all flex items-center justify-center cursor-pointer shadow-lg shrink-0'
-              title='Back-office Admin'>
-              ⚙️
-            </button>
-          )}
-
-          <div className='flex items-center gap-2'>
-            <div className='bg-neutral-800 px-4 py-1.5 rounded-xl border border-neutral-700 flex flex-col items-center justify-center shadow-md'>
-              <p className='text-[9px] uppercase font-bold text-gray-500'>
-                Points
-              </p>
-              <p className='text-base font-black text-white leading-none'>
-                {profil.points || 0}
-              </p>
-            </div>
-
-            <div className='bg-neutral-800 px-4 py-1.5 rounded-xl border border-neutral-700 flex flex-col items-center justify-center shadow-md'>
-              <p className='text-[9px] uppercase font-bold text-gray-500'>
-                Gloires
-              </p>
-              <p className='text-base font-black text-yellow-500 leading-none'>
-                {profil.gloires || 0}
-              </p>
-            </div>
-
-            <div className='flex items-center gap-2 bg-neutral-800 border border-neutral-700 pl-4 pr-1.5 py-1.5 rounded-xl shadow-md shrink-0'>
-              <span className='text-sm font-black text-red-400'>
-                {profil.sceaux || 0}
-              </span>
-              <span className='text-lg'>💠</span>
-              <button
-                onClick={() => router.push('/buy')}
-                className='ml-1 bg-yellow-500 hover:bg-yellow-400 text-neutral-900 px-3 py-1.5 rounded-lg flex items-center justify-center font-black transition-transform hover:scale-105 cursor-pointer shadow-md text-[10px] uppercase tracking-widest'>
-                + Boutique
-              </button>
+        {/* 👇 KAN-39 : Nouveau Wrapper principal pour aligner précisément la barre et le profil 👇 */}
+        <div className='w-full relative flex justify-end'>
+          {/* BARRE D'XP : Absolue, tout à gauche, alignée en bas (sur l'ID) */}
+          <div className='absolute bottom-1 left-0 right-[5.5rem] h-2.5 bg-neutral-800 rounded-full border border-neutral-700 overflow-hidden flex items-center shadow-inner'>
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${pourcentageXP}%` }}
+              transition={{ duration: 0.8, ease: 'easeOut' }}
+              className='absolute top-0 left-0 h-full bg-gradient-to-r from-pink-600 to-pink-400'
+            />
+            <div className='absolute w-full text-center text-[8px] font-black uppercase text-white drop-shadow-md z-10 leading-none mt-[1px]'>
+              {xpActuelle} / {xpRequise} XP - {pourcentageXP}%
             </div>
           </div>
 
-          <div className='w-px h-8 bg-neutral-700 mx-1 hidden sm:block'></div>
+          {/* GROUPE BOUTONS & AVATAR */}
+          <div className='flex items-center gap-3 md:gap-4'>
+            {joueur && ADMIN_UIDS.includes(joueur.uid) && (
+              <button
+                onClick={() => router.push('/admin')}
+                className='w-10 h-10 bg-purple-900/30 hover:bg-purple-600 text-purple-100 rounded-full border border-purple-500 transition-all flex items-center justify-center cursor-pointer shadow-lg shrink-0'
+                title='Back-office Admin'>
+                ⚙️
+              </button>
+            )}
 
-          <div className='relative shrink-0' ref={menuRef}>
-            <div
-              className='flex flex-col items-center cursor-pointer group'
-              onClick={() => setIsMenuOuvert(!isMenuOuvert)}>
-              <div className='bg-neutral-800 w-14 h-14 rounded-full flex items-center justify-center border-2 border-neutral-600 group-hover:border-red-500 transition-colors shadow-lg overflow-hidden'>
-                {renderAvatar(profil.avatar, 'text-4xl')}
+            <div className='flex items-center gap-2'>
+              <div className='bg-neutral-800 px-4 py-1.5 rounded-xl border border-neutral-700 flex flex-col items-center justify-center shadow-md'>
+                <p className='text-[9px] uppercase font-bold text-gray-500'>
+                  Points
+                </p>
+                <p className='text-base font-black text-white leading-none'>
+                  {profil.points || 0}
+                </p>
               </div>
-              <span className='text-[10px] font-black uppercase tracking-tighter text-gray-300 mt-1 group-hover:text-white transition-colors'>
-                {profil.pseudo}
-              </span>
-              <span className='text-[8px] italic text-gray-500 leading-none mt-0.5'>
-                {profil.tagId}
-              </span>
+
+              <div className='bg-neutral-800 px-4 py-1.5 rounded-xl border border-neutral-700 flex flex-col items-center justify-center shadow-md'>
+                <p className='text-[9px] uppercase font-bold text-gray-500'>
+                  Gloires
+                </p>
+                <p className='text-base font-black text-yellow-500 leading-none'>
+                  {profil.gloires || 0}
+                </p>
+              </div>
+
+              <div className='flex items-center gap-2 bg-neutral-800 border border-neutral-700 pl-4 pr-1.5 py-1.5 rounded-xl shadow-md shrink-0'>
+                <span className='text-sm font-black text-red-400'>
+                  {profil.sceaux || 0}
+                </span>
+                <span className='text-lg'>💠</span>
+                <button
+                  onClick={() => router.push('/buy')}
+                  className='ml-1 bg-yellow-500 hover:bg-yellow-400 text-neutral-900 px-3 py-1.5 rounded-lg flex items-center justify-center font-black transition-transform hover:scale-105 cursor-pointer shadow-md text-[10px] uppercase tracking-widest'>
+                  + Boutique
+                </button>
+              </div>
             </div>
 
-            <AnimatePresence>
-              {isMenuOuvert && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className='absolute right-0 mt-4 w-64 bg-neutral-800 border border-neutral-600 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.7)] p-5 z-[110] flex flex-col gap-4'>
-                  <div className='pb-2 border-b border-neutral-700'>
-                    <p className='text-[9px] uppercase font-bold text-gray-500 mb-1'>
-                      Compte
-                    </p>
-                    <p className='text-xs font-medium text-red-400 truncate'>
-                      {profil.email}
-                    </p>
-                    <p className='text-[10px] italic text-gray-500 mt-1'>
-                      {profil.tagId}
-                    </p>
-                  </div>
+            <div className='w-px h-8 bg-neutral-700 mx-1 hidden sm:block'></div>
 
-                  <div className='flex flex-col gap-2'>
+            <div className='relative shrink-0' ref={menuRef}>
+              <div
+                className='flex flex-col items-center cursor-pointer group'
+                onClick={() => setIsMenuOuvert(!isMenuOuvert)}>
+                <div className='relative'>
+                  <div className='bg-neutral-800 w-14 h-14 rounded-full flex items-center justify-center border-2 border-neutral-600 group-hover:border-red-500 transition-colors shadow-lg overflow-hidden'>
+                    {renderAvatar(profil.avatar, 'text-4xl')}
+                  </div>
+                  {/* Bulle de niveau */}
+                  <div className='absolute -top-1 -left-2 bg-neutral-900 border-2 border-blue-500 text-blue-400 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black z-10 shadow-md'>
+                    {niveauActuel}
+                  </div>
+                </div>
+
+                <span className='text-[10px] font-black uppercase tracking-tighter text-gray-300 mt-1 group-hover:text-white transition-colors'>
+                  {profil.pseudo}
+                </span>
+                <span className='text-[8px] italic text-gray-500 leading-none mt-0.5'>
+                  {profil.tagId}
+                </span>
+              </div>
+
+              <AnimatePresence>
+                {isMenuOuvert && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className='absolute right-0 mt-4 w-64 bg-neutral-800 border border-neutral-600 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.7)] p-5 z-[110] flex flex-col gap-4'>
+                    <div className='pb-2 border-b border-neutral-700'>
+                      <p className='text-[9px] uppercase font-bold text-gray-500 mb-1'>
+                        Compte
+                      </p>
+                      <p className='text-xs font-medium text-red-400 truncate'>
+                        {profil.email}
+                      </p>
+                      <p className='text-[10px] italic text-gray-500 mt-1'>
+                        {profil.tagId}
+                      </p>
+                    </div>
+
+                    <div className='flex flex-col gap-2'>
+                      <button
+                        onClick={ouvrirModale}
+                        className='w-full text-left bg-neutral-900 hover:bg-neutral-700 p-3 rounded-xl border border-neutral-700 transition-colors text-xs font-bold uppercase tracking-wider flex items-center gap-3 cursor-pointer'>
+                        <span>✏️</span> Modifier Profil
+                      </button>
+                    </div>
+
+                    <div className='flex flex-col gap-1 py-2'>
+                      <div className='flex justify-between items-center text-[10px]'>
+                        <span className='text-gray-500 font-bold uppercase'>
+                          Inscrit le
+                        </span>
+                        <span className='text-gray-300'>
+                          {formaterDate(profil.dateCreation)}
+                        </span>
+                      </div>
+                      <div className='flex justify-between items-center text-[10px]'>
+                        <span className='text-gray-500 font-bold uppercase'>
+                          Session
+                        </span>
+                        <span className='text-green-500 font-mono'>
+                          {formaterTempsSession(secondesSession)}
+                        </span>
+                      </div>
+                    </div>
+
                     <button
-                      onClick={ouvrirModale}
-                      className='w-full text-left bg-neutral-900 hover:bg-neutral-700 p-3 rounded-xl border border-neutral-700 transition-colors text-xs font-bold uppercase tracking-wider flex items-center gap-3 cursor-pointer'>
-                      <span>✏️</span> Modifier Profil
+                      onClick={() => setShowLogoutConfirm(true)}
+                      className='w-full bg-red-900/20 hover:bg-red-600 text-red-500 hover:text-white p-3 rounded-xl border border-red-900/50 transition-all text-xs font-black uppercase tracking-widest cursor-pointer'>
+                      Quitter
                     </button>
-                  </div>
-
-                  <div className='flex flex-col gap-1 py-2'>
-                    <div className='flex justify-between items-center text-[10px]'>
-                      <span className='text-gray-500 font-bold uppercase'>
-                        Inscrit le
-                      </span>
-                      <span className='text-gray-300'>
-                        {formaterDate(profil.dateCreation)}
-                      </span>
-                    </div>
-                    <div className='flex justify-between items-center text-[10px]'>
-                      <span className='text-gray-500 font-bold uppercase'>
-                        Session
-                      </span>
-                      <span className='text-green-500 font-mono'>
-                        {formaterTempsSession(secondesSession)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setShowLogoutConfirm(true)}
-                    className='w-full bg-red-900/20 hover:bg-red-600 text-red-500 hover:text-white p-3 rounded-xl border border-red-900/50 transition-all text-xs font-black uppercase tracking-widest cursor-pointer'>
-                    Quitter
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </div>
