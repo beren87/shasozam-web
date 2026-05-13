@@ -10,6 +10,7 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc, // 👈 KAN-41 : Ajout de getDoc pour lire le pseudo
   doc,
   updateDoc,
   deleteDoc,
@@ -30,6 +31,9 @@ export default function AdminPage() {
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState(null);
   const [toutesLesCartes, setToutesLesCartes] = useState([]);
+
+  // 👇 KAN-41 : On stocke le pseudo de l'admin
+  const [adminPseudo, setAdminPseudo] = useState('Admin');
 
   const [isDirty, setIsDirty] = useState(false);
   const [showModalQuitter, setShowModalQuitter] = useState(false);
@@ -119,6 +123,17 @@ export default function AdminPage() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user && ADMIN_UIDS.includes(user.uid)) {
         setEstAdmin(true);
+
+        // 👇 KAN-41 : Récupération du pseudo exact du profil Admin
+        try {
+          const userDoc = await getDoc(doc(db, 'joueurs', user.uid));
+          if (userDoc.exists() && userDoc.data().pseudo) {
+            setAdminPseudo(userDoc.data().pseudo);
+          }
+        } catch (e) {
+          console.error('Erreur récupération pseudo:', e);
+        }
+
         await chargerCartes();
         setChargement(false);
       } else {
@@ -150,17 +165,18 @@ export default function AdminPage() {
       }
 
       const maintenant = new Date().toISOString();
-      const auteurActuel =
-        auth.currentUser?.displayName || auth.currentUser?.email || 'Admin';
-
-      dataASauvegarder.dateModification = maintenant;
-      dataASauvegarder.auteur = auteurActuel;
+      const auteurActuel = adminPseudo; // 👈 KAN-41 : On utilise le pseudo
 
       if (idEdition) {
+        // Mode Édition
+        dataASauvegarder.dateModification = maintenant;
+        dataASauvegarder.auteurModification = auteurActuel;
         await updateDoc(doc(db, 'cartes', idEdition), dataASauvegarder);
         afficherNotification('La carte a été mise à jour avec succès !');
       } else {
+        // Mode Création (on ne met pas de modif par défaut)
         dataASauvegarder.dateCreation = maintenant;
+        dataASauvegarder.auteurCreation = auteurActuel;
         await addDoc(collection(db, 'cartes'), dataASauvegarder);
         afficherNotification('Nouvelle carte forgée avec succès !');
       }
@@ -174,18 +190,16 @@ export default function AdminPage() {
     }
   };
 
-  // 👇 LA FAMEUSE FONCTION QUI TE MANQUAIT 👇
   const publierCarteRapide = async (carteId) => {
     try {
       const maintenant = new Date().toISOString();
-      const auteurActuel =
-        auth.currentUser?.displayName || auth.currentUser?.email || 'Admin';
+      const auteurActuel = adminPseudo; // 👈 KAN-41 : On utilise le pseudo
 
       const carteRef = doc(db, 'cartes', carteId);
       await updateDoc(carteRef, {
         publiee: true,
         dateModification: maintenant,
-        auteur: auteurActuel,
+        auteurModification: auteurActuel,
       });
 
       setIsDirty(false);
@@ -275,7 +289,6 @@ export default function AdminPage() {
               preparerEdition(carte);
               setIsDirty(false);
             }}
-            // 👇 ET ICI ON LA PASSE BIEN AU COMPOSANT 👇
             publierCarteRapide={publierCarteRapide}
             supprimerCarte={preparerSuppression}
           />
